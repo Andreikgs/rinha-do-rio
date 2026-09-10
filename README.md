@@ -16,7 +16,7 @@ Acesse `http://localhost:8000`.
 
 - A tela principal é dividida horizontalmente: batalha em cima e pesca embaixo.
 - A pesca funciona como um tycoon: os pescadores capturam peixes automaticamente.
-- Use moedas para contratar até 20 pescadores; cada novo pescador acrescenta exatamente 0,5 peixe por minuto.
+- Use moedas para contratar até 20 pescadores; a primeira contratação custa 10 moedas, as próximas aumentam 50% e cada novo pescador acrescenta exatamente 0,5 peixe por minuto.
 - Cada peixe capturado é invocado imediatamente pelo lado esquerdo da pista.
 - O time inimigo invoca automaticamente peixes diferentes pelo lado direito.
 - As equipes caminham, atacam e destroem o cais adversário automaticamente.
