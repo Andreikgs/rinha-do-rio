@@ -62,6 +62,7 @@ function prepareSpeciesSheet(image) {
 }
 const BATTLE_HP_MULTIPLIER = 1.75;
 const BOSS_HP_BONUS = 10;
+const BOSS_DAMAGE_BONUS = 10;
 const BOSSES = [
   { name: 'Rei Carniça', spriteKey: 'Boss Rei Carniça', emoji: '👑', hp: 250, atk: 23, speed: 10, weight: 8, reward: 450 },
   { name: 'Barão do Lodo', spriteKey: 'Boss Barão do Lodo', emoji: '🪨', hp: 340, atk: 20, speed: 4, weight: 12, reward: 520 },
@@ -177,8 +178,9 @@ function fishingLoop(now) {
   if (Math.abs(fishing.fish - fishing.target) < 7) fishing.target = 15 + Math.random() * (FISH_TRACK_HEIGHT - 45);
   const chase = (fishing.target - fishing.fish) * dt * (1.3 + fishing.difficulty); fishing.fish += chase + Math.sin(now / 170) * fishing.difficulty * .55;
   const zoneH = 96 + state.reel * 9, fishCenter = fishing.fish + 22, inside = fishCenter > fishing.zone && fishCenter < fishing.zone + zoneH;
-  const progressLoss = Math.max(1.4, 3.25 - state.reel * .3) * 1.30;
-  fishing.progress += (inside ? 29 : -progressLoss) * dt; fishing.progress = Math.max(0, Math.min(100, fishing.progress));
+  const progressGain = 19;
+  const progressLoss = Math.max(1.4, 3.25 - state.reel * .3) * 1.75;
+  fishing.progress += (inside ? progressGain : -progressLoss) * dt; fishing.progress = Math.max(0, Math.min(100, fishing.progress));
   $('#catchZone').style.bottom = `${fishing.zone}px`; $('#targetFish').style.bottom = `${fishing.fish}px`; $('#catchProgress').style.height = `${fishing.progress}%`;
   if (fishing.progress >= 100) return endFishing(true); if (fishing.progress <= 0) return endFishing(false);
   fishing.raf = requestAnimationFrame(fishingLoop);
@@ -195,16 +197,17 @@ function showCatchResult(f) {
 }
 
 const battle = { running: false, boss: false, keys: {}, last: 0, timer: 70, selected: null, player: null, enemy: null, particles: [], shake: 0, raf: 0 };
-function makeFighter(f, enemy = false) { const battleHp = Math.round(f.hp * BATTLE_HP_MULTIPLIER); return { ...f, x: enemy ? 730 : 140, y: 405, dir: enemy ? -1 : 1, maxHp: battleHp, curHp: battleHp, cooldown: 0, invuln: 0, flash: 0, attack: null, moving: false, enemy }; }
+function makeFighter(f, enemy = false) { const battleHp = Math.round(f.hp * BATTLE_HP_MULTIPLIER); return { ...f, x: enemy ? 730 : 140, y: 405, dir: enemy ? -1 : 1, maxHp: battleHp, curHp: battleHp, cooldown: 0, invuln: 0, flash: 0, attack: null, moving: false, decision: .25 + Math.random() * .25, enemy }; }
 function startBattle(id) {
   const f = state.inventory.find(x => x.id === id); if (!f) return;
   const bossFight = state.fightsSinceBoss >= 5; let rival;
   if (bossFight) {
     const boss = BOSSES[state.bossesFaced % BOSSES.length], scale = 1 + state.bossesFaced * .04;
-    rival = { ...boss, hp: Math.round(boss.hp * scale) + BOSS_HP_BONUS, atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5 };
+    rival = { ...boss, hp: Math.round(boss.hp * scale) + BOSS_HP_BONUS, atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5, boss: true };
   } else {
-    const tier = Math.min(FISH.length - 1, Math.max(0, FISH.findIndex(x => x.name === f.name) + (Math.random() > .65 ? 1 : 0)));
-    const base = FISH[tier], scale = .92 + state.wins * .025 + Math.random() * .12;
+    const playerTier = FISH.findIndex(x => x.name === f.name), targetTier = Math.min(FISH.length - 1, Math.max(0, playerTier + (Math.random() > .65 ? 1 : 0)));
+    const opponents = FISH.filter(candidate => candidate.name !== f.name);
+    const base = opponents.reduce((best, candidate) => Math.abs(FISH.indexOf(candidate) - targetTier) < Math.abs(FISH.indexOf(best) - targetTier) ? candidate : best), scale = .92 + state.wins * .025 + Math.random() * .12;
     rival = { ...base, name: `${base.name} Bravo`, hp: Math.round(base.hp * scale), atk: Math.round(base.atk * scale), speed: base.speed, quality: 2, weight: 1 };
   }
   battle.boss = bossFight; battle.selected = f; battle.player = makeFighter(f); battle.enemy = makeFighter(rival, true); battle.timer = bossFight ? 90 : 70; battle.running = true; battle.particles = []; battle.shake = 0; battle.last = performance.now();
@@ -218,7 +221,7 @@ function attack(who, type) {
 function dodge(who) { if (who.cooldown > .15) return; who.invuln = .42; who.cooldown = .65; who.x += who.dir * 85; burst(who.x, who.y, '#d9f8ed', 5); }
 function damage(attacker, defender, heavy) {
   if (defender.invuln > 0) { burst(defender.x, defender.y, '#e9ffff', 7); return; }
-  const dmg = Math.round(attacker.atk * (heavy ? 1.8 : 1) * (.88 + Math.random() * .24)); defender.curHp = Math.max(0, defender.curHp - dmg); defender.flash = .16; defender.x += attacker.dir * (heavy ? 38 : 20); battle.shake = heavy ? 9 : 4; burst(defender.x, defender.y - 65, heavy ? '#ff8f32' : '#fff1a6', heavy ? 16 : 9, dmg);
+  const dmg = Math.round(attacker.atk * (heavy ? 1.8 : 1) * (.88 + Math.random() * .24)) + (attacker.boss ? BOSS_DAMAGE_BONUS : 0); defender.curHp = Math.max(0, defender.curHp - dmg); defender.flash = .16; defender.x += attacker.dir * (heavy ? 38 : 20); battle.shake = heavy ? 9 : 4; burst(defender.x, defender.y - 65, heavy ? '#ff8f32' : '#fff1a6', heavy ? 16 : 9, dmg);
 }
 function burst(x, y, color, count, number) { for (let i = 0; i < count; i++) battle.particles.push({ x, y, vx: (Math.random() - .5) * 260, vy: -50 - Math.random() * 180, t: .65, color, size: 4 + Math.random() * 8, number: i === 0 ? number : null }); }
 function updateFighter(f, other, dt) {
@@ -226,12 +229,26 @@ function updateFighter(f, other, dt) {
   if (f.attack) { f.attack.t += dt; const hitAt = f.attack.type === 'heavy' ? .34 : .17, reach = f.attack.type === 'heavy' ? 135 : 100; if (!f.attack.hit && f.attack.t >= hitAt) { f.attack.hit = true; if (Math.abs(other.x - f.x) < reach) damage(f, other, f.attack.type === 'heavy'); } if (f.attack.t > (f.attack.type === 'heavy' ? .62 : .34)) f.attack = null; }
   f.x = Math.max(60, Math.min(900, f.x));
 }
+function runAutoAI(f, other, dt) {
+  if (f.attack || f.invuln > 0) return;
+  f.decision -= dt;
+  const distance = Math.abs(other.x - f.x), direction = Math.sign(other.x - f.x) || f.dir;
+  if (distance > 102) {
+    f.x += direction * (112 + f.speed * 4.5) * dt; f.moving = true;
+    return;
+  }
+  if (f.decision > 0 || f.cooldown > 0) return;
+  const threatened = other.attack && distance < 112, roll = Math.random();
+  if (threatened && roll < .34) dodge(f);
+  else if (roll < (f.boss ? .48 : .34)) attack(f, 'heavy');
+  else attack(f, 'light');
+  f.decision = (f.boss ? .16 : .24) + Math.random() * .32;
+}
 function battleLoop(now) {
   if (!battle.running) return; const dt = Math.min(.033, (now - battle.last) / 1000); battle.last = now; battle.timer -= dt;
   const p = battle.player, e = battle.enemy;
   p.moving = false; e.moving = false;
-  if (!p.attack) { if (battle.keys.KeyA) { p.x -= (125 + p.speed * 5) * dt; p.moving = true; } if (battle.keys.KeyD) { p.x += (125 + p.speed * 5) * dt; p.moving = true; } }
-  const dist = Math.abs(p.x - e.x), aggression = battle.boss ? 3.1 : 2.4; if (!e.attack) { if (dist > 105) { e.x += Math.sign(p.x - e.x) * (105 + e.speed * 4) * dt; e.moving = true; } else if (e.cooldown <= 0 && Math.random() < dt * aggression) Math.random() < (battle.boss ? .38 : .28) ? attack(e, 'heavy') : attack(e, 'light'); if (dist < 85 && Math.random() < dt * .5) dodge(e); }
+  runAutoAI(p, e, dt); runAutoAI(e, p, dt);
   updateFighter(p, e, dt); updateFighter(e, p, dt); battle.shake = Math.max(0, battle.shake - dt * 34); battle.particles.forEach(q => { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 320 * dt; q.t -= dt; }); battle.particles = battle.particles.filter(q => q.t > 0);
   drawBattle(); updateBattleHud(); if (p.curHp <= 0 || e.curHp <= 0 || battle.timer <= 0) return finishBattle(e.curHp < p.curHp); battle.raf = requestAnimationFrame(battleLoop);
 }
@@ -322,8 +339,7 @@ function finishBattle(win) {
   $('#resultPrimary').textContent = 'Voltar para a rinha'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); renderFighters(); }; $('#resultModal').classList.remove('hidden');
 }
 
-document.addEventListener('keydown', e => { battle.keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); if (fishing.active) setReel(true); else if ($('#lake').classList.contains('active')) startFishing(); } if (battle.running) { if (e.code === 'KeyJ') attack(battle.player, 'light'); if (e.code === 'KeyK') attack(battle.player, 'heavy'); if (e.code === 'KeyL') dodge(battle.player); } });
-document.addEventListener('keyup', e => { battle.keys[e.code] = false; if (e.code === 'Space') setReel(false); });
-$$('.battle-controls button').forEach(b => { const a = b.dataset.action; const down = e => { e.preventDefault(); if (a === 'left') battle.keys.KeyA = true; else if (a === 'right') battle.keys.KeyD = true; else if (a === 'light') attack(battle.player, 'light'); else if (a === 'heavy') attack(battle.player, 'heavy'); else dodge(battle.player); }; const up = () => { battle.keys.KeyA = false; battle.keys.KeyD = false; }; b.addEventListener('mousedown', down); b.addEventListener('touchstart', down, { passive: false }); b.addEventListener('mouseup', up); b.addEventListener('mouseleave', up); b.addEventListener('touchend', up); });
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); if (fishing.active) setReel(true); else if ($('#lake').classList.contains('active')) startFishing(); } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') setReel(false); });
 
 updateHud(); renderShop();

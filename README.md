@@ -15,8 +15,7 @@ Depois acesse `http://localhost:8000`.
 ## Controles
 
 - Pesca: segure `Espaço` ou o botão para subir a zona de captura; solte para descer.
-- Arena: `A` e `D` movem, `J` usa ataque leve, `K` usa ataque pesado e `L` esquiva.
-- Os botões na tela também funcionam com mouse e toque.
+- Arena: o combate é automático; os dois peixes se movem, atacam e esquivam por conta própria.
 
 O progresso é salvo automaticamente no navegador.
 
