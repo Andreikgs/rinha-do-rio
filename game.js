@@ -72,7 +72,8 @@ function chooseFish(){
 const tycoon={progress:0,last:performance.now()};
 const MAX_FISHERMEN=20;
 function fishermanCost(){return Math.round(65*Math.pow(1.38,state.fishermen-1))}
-function catchInterval(){const equipment=Math.max(5.8,10.5-state.reel*.75),teamPower=1+(state.fishermen-1)*.48;return Math.max(1.65,equipment/teamPower)}
+function fishPerMinute(){const baseRate=60/Math.max(5.8,10.5-state.reel*.75);return baseRate+Math.max(0,state.fishermen-1)*.5}
+function catchInterval(){return 60/fishPerMinute()}
 function renderFishermen(){const visible=Math.min(10,state.fishermen);$('#fishermenStage').innerHTML=Array.from({length:visible},(_,i)=>{const row=i>=5?1:0,x=5+(i%5)*18,y=row?74:0,scale=row ? .78 : 1;return `<i class="tycoon-fisherman" style="--x:${x}%;--y:${y}px;--scale:${scale};--delay:${-(i*.23)}s"></i>`}).join('');const extra=$('#extraFishermen');extra.classList.toggle('hidden',state.fishermen<=visible);extra.textContent=`+${state.fishermen-visible} pescadores`}
 function updateTycoonHud(){const interval=catchInterval(),cost=fishermanCost();$('#fishermenCount').textContent=state.fishermen;$('.tycoon-heading h3').lastChild.textContent=state.fishermen===1?' pescador':' pescadores';$('#catchRate').textContent=`${(60/interval).toFixed(1)} peixes/min`;const button=$('#hireFisherman');button.disabled=state.fishermen>=MAX_FISHERMEN||state.money<cost;button.textContent=state.fishermen>=MAX_FISHERMEN?'EQUIPE COMPLETA':`CONTRATAR · ${cost} 🪙`}
 function automaticCatch(){const fish=chooseFish();state.catches++;spawnAlly(fish);$('#lastCatch').textContent=`${fish.emoji} ${fish.name} ${'★'.repeat(fish.quality)} foi enviado à batalha!`;$('#lastCatch').classList.remove('flash');requestAnimationFrame(()=>$('#lastCatch').classList.add('flash'));updateHud()}
