@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#102a2d" />
+  <title>Rinha do Rio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <button class="brand" data-view="lake" aria-label="Ir para o lago">
+        <span class="brand-fish">◖)))<</span>
+        <span><b>Rinha</b> do Rio</span>
+      </button>
+      <nav>
+        <button class="nav-btn active" data-view="lake"><span>🎣</span> Lago</button>
+        <button class="nav-btn" data-view="inventory"><span>🎒</span> Viveiro <i id="fishCount">0</i></button>
+        <button class="nav-btn" data-view="shop"><span>🔨</span> Oficina</button>
+        <button class="nav-btn arena-nav" data-view="arena"><span>⚔️</span> Rinha</button>
+      </nav>
+      <div class="money"><span>🪙</span><strong id="money">0</strong></div>
+    </header>
+
+    <main>
+      <section id="lake" class="view active lake-view">
+        <div class="lake-overlay"></div>
+        <div class="welcome-card panel">
+          <p class="eyebrow">VALE DO ANZOL</p>
+          <h1>Águas calmas.<br><em>Peixes brigões.</em></h1>
+          <p>Fisgue seu campeão, venda a pesca ou arrisque tudo na arena.</p>
+          <div class="weather"><span>☀️</span><div><b>Fim de tarde</b><small>Boa atividade no lago</small></div></div>
+        </div>
+        <div id="anglerSprite" class="angler-sprite" aria-label="Pescador lançando a linha"></div>
+        <div class="dock-action">
+          <div class="bobber" aria-hidden="true"><span></span></div>
+          <button id="castBtn" class="primary huge"><span class="hook">🪝</span> LANÇAR LINHA <small>ESPAÇO</small></button>
+          <p><span class="pulse"></span> A água está borbulhando...</p>
+        </div>
+        <div class="quick-stats panel">
+          <div><span>🎣</span><p>Vara <b id="rodQuick">Nível 1</b></p></div>
+          <div><span>⚙️</span><p>Molinete <b id="reelQuick">Nível 1</b></p></div>
+          <div><span>🏆</span><p>Vitórias <b id="winsQuick">0</b></p></div>
+        </div>
+      </section>
+
+      <section id="inventory" class="view page-view">
+        <div class="page-heading"><div><p class="eyebrow">SEUS CAMPEÕES</p><h2>Viveiro</h2><p>Venda sua pesca ou escolha um peixe para a rinha.</p></div><button class="primary" data-view="lake">+ Pescar mais</button></div>
+        <div id="inventoryGrid" class="inventory-grid"></div>
+        <div id="emptyInventory" class="empty-state panel"><span>🐟</span><h3>O viveiro está vazio</h3><p>Vá até o lago e fisgue seu primeiro lutador.</p><button class="primary" data-view="lake">Ir pescar</button></div>
+      </section>
+
+      <section id="shop" class="view page-view">
+        <div class="page-heading"><div><p class="eyebrow">OFICINA DO ZÉ</p><h2>Melhore seu equipamento</h2><p>Uma vara melhor atrai peixes mais raros. Um molinete melhor facilita a fisgada.</p></div></div>
+        <div class="shop-grid">
+          <article class="upgrade-card panel rod-card"><div class="upgrade-art">🎣</div><div class="level-pill" id="rodLevel">NÍVEL 1</div><h3>Vara de Bambu</h3><p>Aumenta a chance de encontrar peixes grandes, raros e com estatísticas melhores.</p><div class="meter-row"><span>Qualidade</span><div class="segments" id="rodSegments"></div></div><button id="buyRod" class="primary buy-btn"></button></article>
+          <article class="upgrade-card panel reel-card"><div class="upgrade-art">⚙️</div><div class="level-pill" id="reelLevel">NÍVEL 1</div><h3>Molinete de Madeira</h3><p>A barra de captura fica maior e o progresso perdido durante a pescaria diminui.</p><div class="meter-row"><span>Controle</span><div class="segments" id="reelSegments"></div></div><button id="buyReel" class="primary buy-btn"></button></article>
+        </div>
+        <div class="tip panel"><span>💡</span><p><b>Dica do Zé</b>Melhore os dois equipamentos: achar uma lenda não adianta se ela escapar do anzol!</p></div>
+      </section>
+
+      <section id="arena" class="view page-view arena-page">
+        <div id="arenaSelect">
+          <div class="page-heading"><div><p class="eyebrow red">DOCA DA DISCÓRDIA</p><h2>Escolha seu lutador</h2><p>O peixe será consumido após a luta — vencendo ou perdendo.</p></div><div class="danger-note">⚠️ SEM VOLTA</div></div>
+          <div id="fighterGrid" class="inventory-grid fighter-grid"></div>
+          <div id="emptyFighters" class="empty-state panel"><span>🫧</span><h3>Nenhum lutador disponível</h3><p>Pesque um peixe primeiro. Quanto mais raro, mais forte.</p><button class="primary" data-view="lake">Ir ao lago</button></div>
+        </div>
+        <div id="battleWrap" class="battle-wrap hidden">
+          <div class="battle-hud">
+            <div class="fighter-info"><b id="playerName">Peixe</b><div class="hp"><i id="playerHp"></i></div></div>
+            <div class="round-badge"><span>RINHA</span><b id="battleTimer">70</b></div>
+            <div class="fighter-info enemy-info"><b id="enemyName">Rival</b><div class="hp"><i id="enemyHp"></i></div></div>
+          </div>
+          <canvas id="battleCanvas" width="960" height="480"></canvas>
+          <div class="battle-controls">
+            <button data-action="left">◀<small>A</small></button><button data-action="right">▶<small>D</small></button>
+            <button class="light" data-action="light">ATAQUE LEVE<small>J</small></button>
+            <button class="heavy" data-action="heavy">ATAQUE PESADO<small>K</small></button>
+            <button class="dodge" data-action="dodge">ESQUIVA<small>L</small></button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="fishingModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="fishing-card panel">
+      <button id="closeFishing" class="close-btn">×</button>
+      <div class="fish-title"><p class="eyebrow">TEM ALGO NO ANZOL!</p><h2 id="catchHint">Segure para fisgar</h2><p>Mantenha o peixe dentro da zona verde.</p></div>
+      <div class="fishing-game">
+        <div class="depth-label top">SUPERFÍCIE</div>
+        <div id="fishTrack" class="fish-track"><div id="catchZone" class="catch-zone"></div><div id="targetFish" class="target-fish">🐟</div><div class="bubbles b1">○</div><div class="bubbles b2">°</div></div>
+        <div class="depth-label bottom">FUNDO</div>
+        <div class="progress-shell"><i id="catchProgress"></i></div>
+      </div>
+      <button id="reelBtn" class="primary reel-button">SEGURE PARA RECOLHER <small>ESPAÇO / TOQUE</small></button>
+    </div>
+  </div>
+
+  <div id="resultModal" class="modal hidden" role="dialog" aria-modal="true"><div class="result-card panel"><div id="resultIcon" class="result-icon">🐟</div><p id="resultEyebrow" class="eyebrow">NOVA CAPTURA!</p><h2 id="resultTitle"></h2><div id="resultBody"></div><button id="resultPrimary" class="primary">Continuar</button></div></div>
+  <div id="toast" class="toast"></div>
+  <script src="game.js"></script>
+</body>
+</html>
