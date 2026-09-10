@@ -1,348 +1,131 @@
 const $ = (s, p = document) => p.querySelector(s);
 const $$ = (s, p = document) => [...p.querySelectorAll(s)];
-
 const FISH = [
-  { name: 'Lambari', emoji: '🐟', rarity: 'Comum', chance: 42, value: 18, hp: 72, atk: 8, speed: 7, color: '#71c7bb' },
-  { name: 'Tilápia', emoji: '🐠', rarity: 'Comum', chance: 26, value: 28, hp: 86, atk: 9, speed: 6, color: '#dfb449' },
-  { name: 'Traíra', emoji: '🐟', rarity: 'Raro', chance: 16, value: 55, hp: 104, atk: 13, speed: 7, color: '#7f6abe' },
-  { name: 'Dourado', emoji: '🐠', rarity: 'Épico', chance: 9, value: 105, hp: 120, atk: 17, speed: 9, color: '#e39134' },
-  { name: 'Pirarucu', emoji: '🐡', rarity: 'Épico', chance: 5, value: 160, hp: 150, atk: 19, speed: 5, color: '#c85d62' },
-  { name: 'Bagre Fantasma', emoji: '🐟', rarity: 'Lendário', chance: 2, value: 330, hp: 172, atk: 25, speed: 10, color: '#62d6df' }
+  { name:'Lambari', emoji:'🐟', rarity:'Comum', chance:42, hp:72, atk:8, speed:9 },
+  { name:'Tilápia', emoji:'🐠', rarity:'Comum', chance:26, hp:86, atk:9, speed:6 },
+  { name:'Traíra', emoji:'🐟', rarity:'Raro', chance:16, hp:104, atk:13, speed:8 },
+  { name:'Dourado', emoji:'🐠', rarity:'Épico', chance:9, hp:120, atk:17, speed:10 },
+  { name:'Pirarucu', emoji:'🐡', rarity:'Épico', chance:5, hp:150, atk:19, speed:4 },
+  { name:'Bagre Fantasma', emoji:'👻', rarity:'Lendário', chance:2, hp:172, atk:25, speed:11 }
 ];
-const fighterSprite = new Image();
-fighterSprite.src = 'assets/peixe-lutador-spritesheet.png';
-let walkingSprite = null;
-const walkingSource = new Image();
-walkingSource.onload = () => {
-  const sheet = document.createElement('canvas'); sheet.width = walkingSource.naturalWidth; sheet.height = walkingSource.naturalHeight;
-  const sx = sheet.getContext('2d', { willReadFrequently: true }); sx.drawImage(walkingSource, 0, 0);
-  const pixels = sx.getImageData(0, 0, sheet.width, sheet.height), d = pixels.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const hi = Math.max(d[i], d[i + 1], d[i + 2]), lo = Math.min(d[i], d[i + 1], d[i + 2]);
-    if (hi - lo < 14 && lo > 118 && hi < 238) d[i + 3] = 0;
-  }
-  sx.putImageData(pixels, 0, 0); walkingSprite = sheet;
+const BOSSES = [
+  { name:'Rei Carniça', key:'Boss Rei Carniça', emoji:'👑', hp:300, atk:33, speed:8, reward:420, size:1.34 },
+  { name:'Barão do Lodo', key:'Boss Barão do Lodo', emoji:'🪨', hp:390, atk:30, speed:4, reward:500, size:1.42 },
+  { name:'Voltágua', key:'Boss Voltágua', emoji:'⚡', hp:280, atk:36, speed:11, reward:540, size:1.32 }
+];
+const SHEET_FILES = {
+  Lambari:'assets/lutador-lambari.png','Tilápia':'assets/lutador-tilapia.png','Traíra':'assets/lutador-traira.png',Dourado:'assets/lutador-dourado.png',Pirarucu:'assets/lutador-pirarucu.png','Bagre Fantasma':'assets/lutador-bagre-fantasma.png',
+  'Boss Rei Carniça':'assets/boss-rei-carnica.png','Boss Barão do Lodo':'assets/boss-barao-lodo.png','Boss Voltágua':'assets/boss-voltagua.png'
 };
-walkingSource.src = 'assets/peixe-lutador-andando.png';
-const speciesSprites = {};
-const SPECIES_SHEETS = {
-  Lambari: 'assets/lutador-lambari.png',
-  'Tilápia': 'assets/lutador-tilapia.png',
-  'Traíra': 'assets/lutador-traira.png',
-  Dourado: 'assets/lutador-dourado.png',
-  Pirarucu: 'assets/lutador-pirarucu.png',
-  'Bagre Fantasma': 'assets/lutador-bagre-fantasma.png',
-  'Boss Rei Carniça': 'assets/boss-rei-carnica.png',
-  'Boss Barão do Lodo': 'assets/boss-barao-lodo.png',
-  'Boss Voltágua': 'assets/boss-voltagua.png'
-};
-Object.entries(SPECIES_SHEETS).forEach(([name, src]) => {
+const SIZE = { Lambari:.78,'Tilápia':.9,'Traíra':.94,Dourado:.92,Pirarucu:1.05,'Bagre Fantasma':.95 };
+const sheets = {};
+const laneBackground = new Image();
+laneBackground.src = 'assets/arena-rio-v2.png';
+
+Object.entries(SHEET_FILES).forEach(([key, src]) => {
   const image = new Image();
-  image.onload = () => {
-    const prepared = prepareSpeciesSheet(image);
-    if (prepared.valid) speciesSprites[name] = prepared;
-  };
+  image.onload = () => sheets[key] = prepareSheet(image);
   image.src = src;
 });
-
-function prepareSpeciesSheet(image) {
+function prepareSheet(image) {
   const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true }); ctx.drawImage(image, 0, 0);
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height), d = pixels.data, w = canvas.width, h = canvas.height;
-  const cellW = w / 3, cellH = h / 2, bounds = [], framePixels = [];
+  const ctx = canvas.getContext('2d', { willReadFrequently:true }); ctx.drawImage(image, 0, 0);
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data, cw = canvas.width / 3, ch = canvas.height / 2, bounds = [];
   for (let frame = 0; frame < 6; frame++) {
-    const col = frame % 3, row = (frame / 3) | 0, x0 = Math.floor(col * cellW), y0 = Math.floor(row * cellH), x1 = Math.ceil((col + 1) * cellW), y1 = Math.ceil((row + 1) * cellH);
-    let minX = x1, minY = y1, maxX = x0, maxY = y0, count = 0;
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (d[(y * w + x) * 4 + 3] > 24) { count++; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
-    framePixels.push(count);
-    bounds.push(maxX > minX ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : { x: x0, y: y0, w: cellW, h: cellH });
+    const col = frame % 3, row = frame > 2 ? 1 : 0, x0 = Math.floor(col*cw), y0 = Math.floor(row*ch), x1 = Math.ceil((col+1)*cw), y1 = Math.ceil((row+1)*ch);
+    let minX=x1,minY=y1,maxX=x0,maxY=y0;
+    for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++) if(d[(y*canvas.width+x)*4+3]>20){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}
+    bounds.push(maxX>minX?{x:minX,y:minY,w:maxX-minX+1,h:maxY-minY+1}:{x:x0,y:y0,w:cw,h:ch});
   }
-  const valid = framePixels.every(count => count > 1800 && count < cellW * cellH * .72);
-  return { canvas, bounds, valid };
+  return { canvas, bounds };
 }
-const BATTLE_HP_MULTIPLIER = 1.75;
-const BOSS_HP_BONUS = 10;
-const BOSS_DAMAGE_BONUS = 10;
-const BOSSES = [
-  { name: 'Rei Carniça', spriteKey: 'Boss Rei Carniça', emoji: '👑', hp: 250, atk: 23, speed: 10, weight: 8, reward: 450 },
-  { name: 'Barão do Lodo', spriteKey: 'Boss Barão do Lodo', emoji: '🪨', hp: 340, atk: 20, speed: 4, weight: 12, reward: 520 },
-  { name: 'Voltágua', spriteKey: 'Boss Voltágua', emoji: '⚡', hp: 230, atk: 26, speed: 12, weight: 7, reward: 560 }
-];
-const rarityClass = r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const baseState = { money: 70, rod: 1, reel: 1, wins: 0, catches: 0, fightsSinceBoss: 0, bossesFaced: 0, bossWins: 0, inventory: [] };
-let state;
-try { state = { ...baseState, ...JSON.parse(localStorage.getItem('rinhaDoRio')) }; } catch { state = { ...baseState }; }
+
+const defaults = { money:70, rod:1, reel:1, wins:0, catches:0 };
+let state; try { state={...defaults,...JSON.parse(localStorage.getItem('rinhaDoRio'))}; } catch { state={...defaults}; }
 const save = () => localStorage.setItem('rinhaDoRio', JSON.stringify(state));
+function updateHud(){ $('#money').textContent=state.money; $('#rodQuick').textContent=`Nível ${state.rod}`; $('#reelQuick').textContent=`Nível ${state.reel}`; $('#winsQuick').textContent=state.wins; save(); }
+function showView(id){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===id)); $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===id)); if(id==='shop')renderShop(); }
+$$('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
+let toastTimer; function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
 
-function showView(id) {
-  if (battle.running && id !== 'arena') return toast('Termine a luta primeiro!');
-  $$('.view').forEach(v => v.classList.toggle('active', v.id === id));
-  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === id));
-  if (id === 'inventory') renderInventory();
-  if (id === 'shop') renderShop();
-  if (id === 'arena' && !battle.running) renderFighters();
-}
-$$('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
-
-function updateHud() {
-  $('#money').textContent = state.money;
-  $('#fishCount').textContent = state.inventory.length;
-  $('#rodQuick').textContent = `Nível ${state.rod}`;
-  $('#reelQuick').textContent = `Nível ${state.reel}`;
-  $('#winsQuick').textContent = state.wins;
-  save();
-}
-
-function fishCard(f, mode = 'inventory') {
-  const el = document.createElement('article');
-  el.className = 'fish-card';
-  el.innerHTML = `<div class="fish-art" style="background:linear-gradient(150deg,#d2eee4,${f.color})"><span class="rarity ${rarityClass(f.rarity)}">${f.rarity}</span><span class="fish-sprite">${f.emoji}</span></div>
-    <div class="fish-info"><h3>${f.name}</h3><div class="fish-meta"><span>${f.weight.toFixed(1)} kg</span><span>Qualidade ${'★'.repeat(f.quality)}</span></div>
-    <div class="stats"><span>❤️ Vida <b>${Math.round(f.hp * BATTLE_HP_MULTIPLIER)}</b></span><span>⚔️ Ataque <b>${f.atk}</b></span><span>💨 Agilidade <b>${f.speed}</b></span><span>🪙 Valor <b>${f.sell}</b></span></div>
-    ${mode === 'inventory' ? `<div class="card-actions"><button class="sell-btn">Vender ${f.sell} 🪙</button><button class="fight-btn">Rinha!</button></div>` : `<div class="card-actions"><button class="fight-btn">Escolher campeão</button></div>`}</div>`;
-  if (mode === 'inventory') {
-    $('.sell-btn', el).onclick = () => sellFish(f.id);
-    $('.fight-btn', el).onclick = () => { showView('arena'); setTimeout(() => startBattle(f.id), 100); };
-  } else $('.fight-btn', el).onclick = () => startBattle(f.id);
-  return el;
-}
-
-function renderInventory() {
-  const grid = $('#inventoryGrid'); grid.innerHTML = '';
-  state.inventory.forEach(f => grid.append(fishCard(f)));
-  $('#emptyInventory').classList.toggle('hidden', state.inventory.length > 0);
-}
-function renderFighters() {
-  $('#arenaSelect').classList.remove('hidden'); $('#battleWrap').classList.add('hidden');
-  const grid = $('#fighterGrid'); grid.innerHTML = '';
-  state.inventory.forEach(f => grid.append(fishCard(f, 'fighter')));
-  $('#emptyFighters').classList.toggle('hidden', state.inventory.length > 0);
-  const ready = state.fightsSinceBoss >= 5, remaining = Math.max(0, 5 - state.fightsSinceBoss);
-  $('#bossTracker').classList.toggle('ready', ready);
-  $('#bossTrackerText').textContent = ready ? 'BOSS PRONTO — escolha seu campeão!' : `${remaining} luta${remaining === 1 ? '' : 's'} até o próximo boss`;
-  $('#bossPips').innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${i < state.fightsSinceBoss ? 'on' : ''}"></i>`).join('');
-}
-function sellFish(id) {
-  const idx = state.inventory.findIndex(f => f.id === id); if (idx < 0) return;
-  const [f] = state.inventory.splice(idx, 1); state.money += f.sell; updateHud(); renderInventory();
-  toast(`${f.name} vendido por ${f.sell} moedas!`);
-}
-
-function renderShop() {
-  const configs = [['rod', 'Vara', 90, 'buyRod', 20], ['reel', 'Molinete', 75, 'buyReel', 5]];
-  configs.forEach(([key, name, base, buttonId, maxLevel]) => {
-    const lvl = state[key], growth = key === 'rod' ? 1.32 : 1.75, cost = Math.round(base * Math.pow(growth, lvl - 1));
-    $(`#${key}Level`).textContent = `NÍVEL ${lvl}`;
-    $(`#${key}Segments`).innerHTML = Array.from({ length: maxLevel }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
-    const btn = $(`#${buttonId}`);
-    btn.textContent = lvl >= maxLevel ? 'MÁXIMO' : `MELHORAR · ${cost} 🪙`;
-    btn.disabled = lvl >= maxLevel || state.money < cost;
-    btn.onclick = () => { if (state.money < cost || state[key] >= maxLevel) return; state.money -= cost; state[key]++; updateHud(); renderShop(); toast(`${name} melhorado para o nível ${state[key]}!`); };
+function renderShop(){
+  [['rod','Vara',90,'buyRod',20],['reel','Molinete',75,'buyReel',5]].forEach(([key,label,base,id,max])=>{
+    const level=state[key],growth=key==='rod'?1.32:1.75,cost=Math.round(base*Math.pow(growth,level-1));
+    $(`#${key}Level`).textContent=`NÍVEL ${level}`; $(`#${key}Segments`).innerHTML=Array.from({length:max},(_,i)=>`<i class="${i<level?'on':''}"></i>`).join('');
+    const btn=$(`#${id}`);btn.textContent=level>=max?'MÁXIMO':`MELHORAR · ${cost} 🪙`;btn.disabled=level>=max||state.money<cost;
+    btn.onclick=()=>{if(state.money<cost||state[key]>=max)return;state.money-=cost;state[key]++;updateHud();renderShop();toast(`${label} melhorado para o nível ${state[key]}!`)};
   });
 }
 
-let toastTimer;
-function toast(msg) { const el = $('#toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 2400); }
+const fishing={active:false,preparing:false,holding:false,zone:0,vel:0,fish:110,target:110,progress:22,last:0,raf:0,catch:null};
+function chooseFish(){
+  const boost=(state.rod-1)*4,weights=FISH.map((f,i)=>Math.max(1,f.chance+(i<2?-boost:boost*(i/8))));let roll=Math.random()*weights.reduce((a,b)=>a+b,0),chosen=FISH[0];
+  for(let i=0;i<FISH.length;i++){roll-=weights[i];if(roll<=0){chosen=FISH[i];break}}
+  const quality=Math.min(5,1+Math.floor(Math.random()*Math.max(1,state.rod+1))),weight=+(0.4+Math.random()*(1.5+FISH.indexOf(chosen)*1.2)+state.rod*.08).toFixed(1),mult=1+(quality-1)*.09+weight*.025;
+  return {...chosen,quality,weight,hp:Math.round(chosen.hp*mult),atk:Math.round(chosen.atk*mult),speed:Math.round(chosen.speed+quality*.35),difficulty:.72+FISH.indexOf(chosen)*.16+weight*.04};
+}
+function startFishing(){
+  if(fishing.active||fishing.preparing)return;fishing.preparing=true;$('#castBtn').disabled=true;$('#anglerSprite').className='angler-sprite casting';
+  setTimeout(()=>{fishing.preparing=false;fishing.active=true;fishing.holding=false;fishing.zone=0;fishing.vel=0;fishing.fish=105;fishing.target=105;fishing.progress=22;fishing.catch=chooseFish();fishing.last=performance.now();
+    const zoneH=72+state.reel*7;$('#catchZone').style.height=`${zoneH}px`;$('#targetFish').textContent=fishing.catch.emoji;$('#idleFishing').classList.add('hidden');$('#inlineFishing').classList.remove('hidden');$('#anglerSprite').className='angler-sprite reeling';fishing.raf=requestAnimationFrame(fishingLoop)},700);
+}
+function fishingLoop(now){
+  if(!fishing.active)return;const dt=Math.min(.032,(now-fishing.last)/1000);fishing.last=now;const track=$('#fishTrack').clientHeight-8,zoneH=72+state.reel*7;
+  fishing.vel+=(fishing.holding?470:-370)*dt;fishing.vel*=.92;fishing.zone=Math.max(0,Math.min(track-zoneH,fishing.zone+fishing.vel*dt));
+  if(Math.abs(fishing.fish-fishing.target)<7)fishing.target=10+Math.random()*(track-40);fishing.fish+=(fishing.target-fishing.fish)*dt*(1.25+fishing.catch.difficulty)+Math.sin(now/170)*fishing.catch.difficulty*.45;
+  const inside=fishing.fish+20>fishing.zone&&fishing.fish+20<fishing.zone+zoneH,gain=19,loss=Math.max(1.4,3.25-state.reel*.3)*1.75;fishing.progress=Math.max(0,Math.min(100,fishing.progress+(inside?gain:-loss)*dt));
+  $('#catchZone').style.bottom=`${fishing.zone}px`;$('#targetFish').style.bottom=`${fishing.fish}px`;$('#catchProgress').style.height=`${fishing.progress}%`;
+  if(fishing.progress>=100)return endFishing(true);if(fishing.progress<=0)return endFishing(false);fishing.raf=requestAnimationFrame(fishingLoop);
+}
+function endFishing(success){
+  fishing.active=false;fishing.holding=false;cancelAnimationFrame(fishing.raf);$('#inlineFishing').classList.add('hidden');$('#idleFishing').classList.remove('hidden');$('#castBtn').disabled=false;$('#anglerSprite').className='angler-sprite';
+  if(success){state.catches++;spawnAlly(fishing.catch);updateHud();toast(`${fishing.catch.name} ${'★'.repeat(fishing.catch.quality)} entrou na batalha!`)}else toast('O peixe escapou! Tente outra vez.');
+}
+function setReel(on){fishing.holding=on} $('#castBtn').onclick=startFishing;
+['mousedown','touchstart'].forEach(e=>$('#reelBtn').addEventListener(e,x=>{x.preventDefault();setReel(true)},{passive:false}));['mouseup','mouseleave','touchend','touchcancel'].forEach(e=>$('#reelBtn').addEventListener(e,()=>setReel(false)));
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(fishing.active)setReel(true);else if($('#lake').classList.contains('active'))startFishing()}});document.addEventListener('keyup',e=>{if(e.code==='Space')setReel(false)});
 
-const FISH_TRACK_HEIGHT = 350;
-const fishing = { active: false, preparing: false, holding: false, zone: 0, vel: 0, fish: 160, target: 160, progress: 12, last: 0, difficulty: 1, raf: 0 };
-function chooseFish() {
-  const rarityBoost = (state.rod - 1) * 4;
-  const weights = FISH.map((f, i) => Math.max(1, f.chance + (i < 2 ? -rarityBoost : rarityBoost * (i / 8))));
-  let roll = Math.random() * weights.reduce((a, b) => a + b, 0), chosen = FISH[0];
-  for (let i = 0; i < FISH.length; i++) { roll -= weights[i]; if (roll <= 0) { chosen = FISH[i]; break; } }
-  const quality = Math.min(5, 1 + Math.floor(Math.random() * Math.max(1, state.rod + 1)));
-  const weight = +(0.35 + Math.random() * (1.5 + FISH.indexOf(chosen) * 1.25) + state.rod * .08).toFixed(1);
-  const mult = 1 + (quality - 1) * .09 + weight * .025;
-  return { ...chosen, id: Date.now() + Math.random(), quality, weight, hp: Math.round(chosen.hp * mult), atk: Math.round(chosen.atk * mult), speed: Math.round(chosen.speed + quality * .4), sell: Math.round(chosen.value * mult), difficulty: 0.75 + FISH.indexOf(chosen) * .18 + weight * .045 };
+const lane={units:[],particles:[],last:performance.now(),enemySpawn:2,bossTimer:60,bossIndex:0,elapsed:0,allyBase:700,enemyBase:700,maxBase:700,enemyHpMultiplier:1,messageTimer:0};
+function makeUnit(data,team,boss=false){const id=globalThis.crypto?.randomUUID?.()||Math.random(),teamMultiplier=team==='enemy'?lane.enemyHpMultiplier:1,maxHp=Math.round(data.hp*(boss?1.25:1.45)*teamMultiplier);return{...data,id,team,boss,key:boss?data.key:data.name,x:team==='ally'?115:1085,y:315+(Math.random()-.5)*10,dir:team==='ally'?1:-1,maxHp,curHp:maxHp,cooldown:.3+Math.random()*.4,attack:null,moving:false,hurt:0,dead:false,size:boss?data.size:(SIZE[data.name]||.9)}}
+function spawnAlly(fish){lane.units.push(makeUnit(fish,'ally'));setLaneMessage(`${fish.name} foi invocado no seu time!`)}
+function spawnEnemy(){
+  const allyNames=new Set(lane.units.filter(u=>u.team==='ally'&&!u.dead).map(u=>u.name)),available=FISH.filter(f=>!allyNames.has(f.name)),pool=available.length?available:FISH,base=pool[Math.floor(Math.random()*pool.length)],scale=1+Math.min(.55,lane.elapsed/600);
+  lane.units.push(makeUnit({...base,hp:Math.round(base.hp*scale),atk:Math.round(base.atk*scale)},'enemy'));
 }
-function startFishing() {
-  if (fishing.active || fishing.preparing) return;
-  fishing.preparing = true;
-  const angler = $('#anglerSprite'); angler.className = 'angler-sprite casting';
-  setTimeout(() => {
-    fishing.preparing = false; fishing.catch = chooseFish(); fishing.active = true; fishing.holding = false; fishing.zone = 0; fishing.vel = 0; fishing.fish = 150; fishing.target = 150; fishing.progress = 12; fishing.last = performance.now(); fishing.difficulty = fishing.catch.difficulty;
-    angler.className = 'angler-sprite reeling';
-    $('#catchZone').style.height = `${96 + state.reel * 9}px`; $('#targetFish').textContent = fishing.catch.emoji; $('#fishingModal').classList.remove('hidden');
-    fishing.raf = requestAnimationFrame(fishingLoop);
-  }, 760);
+function spawnBoss(){const boss=BOSSES[lane.bossIndex++%BOSSES.length];lane.units.push(makeUnit(boss,'enemy',true));setLaneMessage(`♛ ${boss.name} INVADIU A PISTA!`,5);toast(`BOSS INVOCADO: ${boss.name}!`)}
+function setLaneMessage(msg,time=2.8){$('#laneMessage').textContent=msg;lane.messageTimer=time}
+function nearestEnemy(unit){let best=null,dist=Infinity;for(const other of lane.units){if(other.dead||other.team===unit.team)continue;const d=Math.abs(other.x-unit.x);if(d<dist){dist=d;best=other}}return best}
+function beginAttack(unit,target,heavy){unit.attack={t:0,hit:false,heavy,target};unit.cooldown=heavy ? .95 : .55}
+function updateUnit(unit,dt){
+  if(unit.dead)return;unit.cooldown=Math.max(0,unit.cooldown-dt);unit.hurt=Math.max(0,unit.hurt-dt);unit.moving=false;
+  if(unit.attack){unit.attack.t+=dt;const hitAt=unit.attack.heavy ? .32 : .17;if(!unit.attack.hit&&unit.attack.t>=hitAt){unit.attack.hit=true;const target=unit.attack.target;if(target&&!target.dead&&Math.abs(target.x-unit.x)<105){const dmg=Math.round(unit.atk*(unit.attack.heavy?1.7:1)*(.9+Math.random()*.2));hurtUnit(target,dmg,unit)}}if(unit.attack.t>(unit.attack.heavy ? .58 : .34))unit.attack=null;return}
+  const target=nearestEnemy(unit);if(target){unit.dir=target.x>unit.x?1:-1;const dist=Math.abs(target.x-unit.x);if(dist>78){unit.x+=unit.dir*(48+unit.speed*6)*dt;unit.moving=true}else if(unit.cooldown<=0)beginAttack(unit,target,Math.random()<(unit.boss ? .42 : .27));}
+  else{const goal=unit.team==='ally'?1120:80;unit.dir=goal>unit.x?1:-1;if(Math.abs(goal-unit.x)>48){unit.x+=unit.dir*(48+unit.speed*6)*dt;unit.moving=true}else if(unit.cooldown<=0){unit.cooldown=.72;hitBase(unit)}}
+  unit.x=Math.max(65,Math.min(1135,unit.x));
 }
-function endFishing(success) {
-  fishing.active = false; fishing.holding = false; cancelAnimationFrame(fishing.raf); $('#fishingModal').classList.add('hidden'); $('#anglerSprite').className = 'angler-sprite';
-  if (success) { state.inventory.push(fishing.catch); state.catches++; updateHud(); showCatchResult(fishing.catch); }
-  else { toast('O peixe escapou nas profundezas...'); }
+function hurtUnit(target,dmg,attacker){target.curHp-=dmg;target.hurt=.18;target.x+=attacker.dir*10;burst(target.x,target.y-70,attacker.boss?'#ff9b31':'#fff09a',dmg);if(target.curHp<=0){target.dead=true;if(target.team==='enemy'){const reward=target.boss?target.reward:12+Math.round(target.maxHp*.08);state.money+=reward;state.wins++;updateHud();setLaneMessage(target.boss?`♛ ${target.name} derrotado! +${reward} moedas`:`${target.name} derrotado! +${reward} moedas`,target.boss?5:2.5)}}}
+function hitBase(unit){const dmg=Math.round(unit.atk*(unit.boss?1.5:1));if(unit.team==='ally'){lane.enemyBase-=dmg;burst(1125,300,'#ffe080',dmg)}else{lane.allyBase-=dmg;burst(75,300,'#ff806b',dmg)}}
+function burst(x,y,color,number){for(let i=0;i<8;i++)lane.particles.push({x,y,vx:(Math.random()-.5)*150,vy:-30-Math.random()*100,t:.65,color,size:3+Math.random()*6,number:i?null:number})}
+function resetBase(which){if(which==='enemy'){state.money+=220;lane.enemyHpMultiplier*=1.1;updateHud();toast(`Cais rival destruído! +220 moedas · Vida inimiga +10%`);setLaneMessage(`O próximo exército rival terá ${Math.round((lane.enemyHpMultiplier-1)*100)}% mais vida!`,4);lane.enemyBase=lane.maxBase;lane.units=lane.units.filter(u=>u.team==='ally')}else{state.money=Math.max(0,state.money-60);updateHud();toast('Seu cais caiu! -60 moedas');lane.allyBase=lane.maxBase;lane.units=[]}}
+function laneLoop(now){
+  const dt=Math.min(.04,(now-lane.last)/1000);lane.last=now;lane.elapsed+=dt;lane.enemySpawn-=dt;lane.bossTimer-=dt;lane.messageTimer-=dt;
+  if(lane.enemySpawn<=0){spawnEnemy();lane.enemySpawn=7.5+Math.random()*3}if(lane.bossTimer<=0){spawnBoss();lane.bossTimer=60}
+  lane.units.forEach(u=>updateUnit(u,dt));lane.units=lane.units.filter(u=>!u.dead);lane.particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=260*dt;p.t-=dt});lane.particles=lane.particles.filter(p=>p.t>0);
+  if(lane.enemyBase<=0)resetBase('enemy');if(lane.allyBase<=0)resetBase('ally');if(lane.messageTimer<=0)$('#laneMessage').textContent=lane.units.some(u=>u.team==='ally')?'A batalha acontece enquanto você pesca.':'Pesque para reforçar seu time!';
+  drawLane();updateLaneHud();requestAnimationFrame(laneLoop);
 }
-function fishingLoop(now) {
-  if (!fishing.active) return; const dt = Math.min(.032, (now - fishing.last) / 1000); fishing.last = now;
-  fishing.vel += (fishing.holding ? 520 : -410) * dt; fishing.vel *= .92; fishing.zone = Math.max(0, Math.min(FISH_TRACK_HEIGHT - (96 + state.reel * 9), fishing.zone + fishing.vel * dt));
-  if (Math.abs(fishing.fish - fishing.target) < 7) fishing.target = 15 + Math.random() * (FISH_TRACK_HEIGHT - 45);
-  const chase = (fishing.target - fishing.fish) * dt * (1.3 + fishing.difficulty); fishing.fish += chase + Math.sin(now / 170) * fishing.difficulty * .55;
-  const zoneH = 96 + state.reel * 9, fishCenter = fishing.fish + 22, inside = fishCenter > fishing.zone && fishCenter < fishing.zone + zoneH;
-  const progressGain = 19;
-  const progressLoss = Math.max(1.4, 3.25 - state.reel * .3) * 1.75;
-  fishing.progress += (inside ? progressGain : -progressLoss) * dt; fishing.progress = Math.max(0, Math.min(100, fishing.progress));
-  $('#catchZone').style.bottom = `${fishing.zone}px`; $('#targetFish').style.bottom = `${fishing.fish}px`; $('#catchProgress').style.height = `${fishing.progress}%`;
-  if (fishing.progress >= 100) return endFishing(true); if (fishing.progress <= 0) return endFishing(false);
-  fishing.raf = requestAnimationFrame(fishingLoop);
+function updateLaneHud(){const sec=Math.max(0,Math.ceil(lane.bossTimer));$('#bossCountdown').textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;$('#allyCount').textContent=lane.units.filter(u=>u.team==='ally').length;$('#enemyCount').textContent=lane.units.filter(u=>u.team==='enemy').length;$('#allyBaseHp').style.width=`${Math.max(0,lane.allyBase/lane.maxBase*100)}%`;$('#enemyBaseHp').style.width=`${Math.max(0,lane.enemyBase/lane.maxBase*100)}%`}
+function drawLane(){
+  const c=$('#laneCanvas'),x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);
+  if(laneBackground.complete&&laneBackground.naturalWidth){const sourceRatio=laneBackground.naturalWidth/laneBackground.naturalHeight,targetRatio=c.width/c.height;let sx=0,sy=0,sw=laneBackground.naturalWidth,sh=laneBackground.naturalHeight;if(sourceRatio<targetRatio){sh=sw/targetRatio;sy=(laneBackground.naturalHeight-sh)/2}else{sw=sh*targetRatio;sx=(laneBackground.naturalWidth-sw)/2}x.imageSmoothingEnabled=false;x.drawImage(laneBackground,sx,sy,sw,sh,0,0,c.width,c.height);x.fillStyle='#09292c18';x.fillRect(0,0,c.width,c.height)}else{const sky=x.createLinearGradient(0,0,0,380);sky.addColorStop(0,'#f2aa68');sky.addColorStop(.58,'#9c5650');sky.addColorStop(.59,'#26716d');sky.addColorStop(1,'#123b40');x.fillStyle=sky;x.fillRect(0,0,1200,380);x.fillStyle='#173b3d';for(let i=0;i<18;i++){x.fillRect(i*75,120+(i%3)*9,45,90);x.fillRect(i*75+10,92+(i%3)*10,25,35)}x.fillStyle='#75452f';x.fillRect(0,302,1200,78);x.fillStyle='#a96740';x.fillRect(0,309,1200,71);drawBase(x,55,'#38c8aa','SEU CAIS');drawBase(x,1145,'#d75b4b','RIVAL')}
+  const ordered=[...lane.units].sort((a,b)=>a.y-b.y);ordered.forEach(u=>drawUnit(x,u));lane.particles.forEach(p=>{x.globalAlpha=Math.min(1,p.t*2);x.fillStyle=p.color;x.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);if(p.number){x.font='bold 18px Nunito';x.strokeStyle='#4b2420';x.lineWidth=4;x.strokeText(`-${p.number}`,p.x,p.y-8);x.fillStyle='#fff5c4';x.fillText(`-${p.number}`,p.x,p.y-8)}});x.globalAlpha=1;
 }
-function setReel(on) { fishing.holding = on; }
-$('#castBtn').onclick = startFishing; $('#closeFishing').onclick = () => endFishing(false);
-['mousedown', 'touchstart'].forEach(e => $('#reelBtn').addEventListener(e, x => { x.preventDefault(); setReel(true); }, { passive: false }));
-['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(e => $('#reelBtn').addEventListener(e, () => setReel(false)));
-
-function showCatchResult(f) {
-  $('#resultIcon').textContent = f.emoji; $('#resultEyebrow').textContent = 'NOVA CAPTURA!'; $('#resultTitle').textContent = f.name;
-  $('#resultBody').innerHTML = `<p><span class="rarity ${rarityClass(f.rarity)}" style="position:static">${f.rarity}</span></p><div class="result-stats"><div><span>PESO</span><b>${f.weight.toFixed(1)} kg</b></div><div><span>QUALIDADE</span><b>${'★'.repeat(f.quality)}</b></div><div><span>VALOR</span><b>${f.sell} 🪙</b></div></div>`;
-  $('#resultPrimary').textContent = 'Guardar no viveiro'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); showView('inventory'); }; $('#resultModal').classList.remove('hidden');
-}
-
-const battle = { running: false, boss: false, keys: {}, last: 0, timer: 70, selected: null, player: null, enemy: null, particles: [], shake: 0, raf: 0 };
-function makeFighter(f, enemy = false) { const battleHp = Math.round(f.hp * BATTLE_HP_MULTIPLIER); return { ...f, x: enemy ? 730 : 140, y: 405, dir: enemy ? -1 : 1, maxHp: battleHp, curHp: battleHp, cooldown: 0, invuln: 0, flash: 0, attack: null, moving: false, decision: .25 + Math.random() * .25, enemy }; }
-function startBattle(id) {
-  const f = state.inventory.find(x => x.id === id); if (!f) return;
-  const bossFight = state.fightsSinceBoss >= 5; let rival;
-  if (bossFight) {
-    const boss = BOSSES[state.bossesFaced % BOSSES.length], scale = 1 + state.bossesFaced * .04;
-    rival = { ...boss, hp: Math.round(boss.hp * scale) + BOSS_HP_BONUS, atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5, boss: true };
-  } else {
-    const playerTier = FISH.findIndex(x => x.name === f.name), targetTier = Math.min(FISH.length - 1, Math.max(0, playerTier + (Math.random() > .65 ? 1 : 0)));
-    const opponents = FISH.filter(candidate => candidate.name !== f.name);
-    const base = opponents.reduce((best, candidate) => Math.abs(FISH.indexOf(candidate) - targetTier) < Math.abs(FISH.indexOf(best) - targetTier) ? candidate : best), scale = .92 + state.wins * .025 + Math.random() * .12;
-    rival = { ...base, name: `${base.name} Bravo`, hp: Math.round(base.hp * scale), atk: Math.round(base.atk * scale), speed: base.speed, quality: 2, weight: 1 };
-  }
-  battle.boss = bossFight; battle.selected = f; battle.player = makeFighter(f); battle.enemy = makeFighter(rival, true); battle.timer = bossFight ? 90 : 70; battle.running = true; battle.particles = []; battle.shake = 0; battle.last = performance.now();
-  $('#arenaSelect').classList.add('hidden'); $('#battleWrap').classList.remove('hidden'); $('#playerName').textContent = f.name; $('#enemyName').textContent = bossFight ? `♛ ${rival.name}` : rival.name;
-  $('#roundBadge').classList.toggle('boss', bossFight); $('#roundBadge span').textContent = bossFight ? 'BOSS' : 'RINHA'; updateBattleHud(); battle.raf = requestAnimationFrame(battleLoop);
-}
-function attack(who, type) {
-  if (who.cooldown > 0 || who.attack) return;
-  const heavy = type === 'heavy'; who.attack = { type, t: 0, hit: false }; who.cooldown = heavy ? .95 : .48;
-}
-function dodge(who) { if (who.cooldown > .15) return; who.invuln = .42; who.cooldown = .65; who.x += who.dir * 85; burst(who.x, who.y, '#d9f8ed', 5); }
-function damage(attacker, defender, heavy) {
-  if (defender.invuln > 0) { burst(defender.x, defender.y, '#e9ffff', 7); return; }
-  const dmg = Math.round(attacker.atk * (heavy ? 1.8 : 1) * (.88 + Math.random() * .24)) + (attacker.boss ? BOSS_DAMAGE_BONUS : 0); defender.curHp = Math.max(0, defender.curHp - dmg); defender.flash = .16; defender.x += attacker.dir * (heavy ? 38 : 20); battle.shake = heavy ? 9 : 4; burst(defender.x, defender.y - 65, heavy ? '#ff8f32' : '#fff1a6', heavy ? 16 : 9, dmg);
-}
-function burst(x, y, color, count, number) { for (let i = 0; i < count; i++) battle.particles.push({ x, y, vx: (Math.random() - .5) * 260, vy: -50 - Math.random() * 180, t: .65, color, size: 4 + Math.random() * 8, number: i === 0 ? number : null }); }
-function updateFighter(f, other, dt) {
-  f.cooldown = Math.max(0, f.cooldown - dt); f.invuln = Math.max(0, f.invuln - dt); f.flash = Math.max(0, f.flash - dt); f.dir = other.x > f.x ? 1 : -1;
-  if (f.attack) { f.attack.t += dt; const hitAt = f.attack.type === 'heavy' ? .34 : .17, reach = f.attack.type === 'heavy' ? 135 : 100; if (!f.attack.hit && f.attack.t >= hitAt) { f.attack.hit = true; if (Math.abs(other.x - f.x) < reach) damage(f, other, f.attack.type === 'heavy'); } if (f.attack.t > (f.attack.type === 'heavy' ? .62 : .34)) f.attack = null; }
-  f.x = Math.max(60, Math.min(900, f.x));
-}
-function runAutoAI(f, other, dt) {
-  if (f.attack || f.invuln > 0) return;
-  f.decision -= dt;
-  const distance = Math.abs(other.x - f.x), direction = Math.sign(other.x - f.x) || f.dir;
-  if (distance > 102) {
-    f.x += direction * (112 + f.speed * 4.5) * dt; f.moving = true;
-    return;
-  }
-  if (f.decision > 0 || f.cooldown > 0) return;
-  const threatened = other.attack && distance < 112, roll = Math.random();
-  if (threatened && roll < .34) dodge(f);
-  else if (roll < (f.boss ? .48 : .34)) attack(f, 'heavy');
-  else attack(f, 'light');
-  f.decision = (f.boss ? .16 : .24) + Math.random() * .32;
-}
-function battleLoop(now) {
-  if (!battle.running) return; const dt = Math.min(.033, (now - battle.last) / 1000); battle.last = now; battle.timer -= dt;
-  const p = battle.player, e = battle.enemy;
-  p.moving = false; e.moving = false;
-  runAutoAI(p, e, dt); runAutoAI(e, p, dt);
-  updateFighter(p, e, dt); updateFighter(e, p, dt); battle.shake = Math.max(0, battle.shake - dt * 34); battle.particles.forEach(q => { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 320 * dt; q.t -= dt; }); battle.particles = battle.particles.filter(q => q.t > 0);
-  drawBattle(); updateBattleHud(); if (p.curHp <= 0 || e.curHp <= 0 || battle.timer <= 0) return finishBattle(e.curHp < p.curHp); battle.raf = requestAnimationFrame(battleLoop);
-}
-function drawBattle() {
-  const c = $('#battleCanvas'), x = c.getContext('2d'); x.clearRect(0, 0, c.width, c.height);
-  x.save(); if (battle.shake > 0) x.translate((Math.random() - .5) * battle.shake, (Math.random() - .5) * battle.shake);
-  const sky = x.createLinearGradient(0, 0, 0, 480); sky.addColorStop(0, '#efae68'); sky.addColorStop(.52, '#ac6552'); sky.addColorStop(.53, '#326e68'); sky.addColorStop(1, '#173f43'); x.fillStyle = sky; x.fillRect(0, 0, 960, 480);
-  x.fillStyle = '#173c3d'; for (let i = 0; i < 12; i++) { x.fillRect(i * 90, 185 + (i % 3) * 12, 55, 70); x.fillRect(i * 90 + 12, 150 + (i % 3) * 12, 30, 40); }
-  x.fillStyle = '#875441'; x.fillRect(0, 250, 960, 35); x.fillStyle = '#5d3b35'; for (let i = 0; i < 20; i++) x.fillRect(i * 52, 255, 4, 225);
-  x.strokeStyle = '#a5e9dc55'; x.lineWidth = 3; for (let i = 0; i < 10; i++) { x.beginPath(); x.moveTo(20 + i * 110, 325 + i % 2 * 15); x.lineTo(85 + i * 110, 325 + i % 2 * 15); x.stroke(); }
-  x.fillStyle = '#714330'; x.fillRect(0, 375, 960, 105); x.fillStyle = '#a86642'; x.fillRect(0, 382, 960, 98); x.fillStyle = '#c37a4b'; x.fillRect(0, 382, 960, 8);
-  x.strokeStyle = '#75432f'; x.lineWidth = 4; for (let i = 0; i < 14; i++) { x.beginPath(); x.moveTo(i * 74, 384); x.lineTo(i * 74 - 12, 480); x.stroke(); }
-  x.fillStyle = '#102a2d66'; [battle.player, battle.enemy].forEach(f => { x.beginPath(); x.ellipse(f.x, f.y + 5, 58, 12, 0, 0, Math.PI * 2); x.fill(); });
-  drawFighter(x, battle.player); drawFighter(x, battle.enemy);
-  battle.particles.forEach(q => { x.globalAlpha = Math.min(1, q.t * 2); x.fillStyle = q.color; x.save(); x.translate(q.x, q.y); x.rotate(q.t * 7); x.fillRect(-q.size / 2, -q.size / 2, q.size, q.size); x.restore(); if (q.number) { x.font = 'bold 24px Nunito'; x.fillStyle = '#fff8cf'; x.strokeStyle = '#6d251c'; x.lineWidth = 5; x.strokeText(`-${q.number}`, q.x, q.y - 12); x.fillText(`-${q.number}`, q.x, q.y - 12); } }); x.globalAlpha = 1; x.restore();
-}
-function drawFighter(x, f) {
-  x.save(); x.translate(f.x, f.y); x.scale(f.dir, 1); if (f.flash > 0) x.globalAlpha = .55;
-  if (f.invuln > 0) { x.strokeStyle = '#c8fff4'; x.lineWidth = 6; x.beginPath(); x.arc(0, -42, 65, 0, Math.PI * 2); x.stroke(); }
-  const speciesName = f.spriteKey || f.name.replace(' Bravo', ''), speciesSheet = speciesSprites[speciesName];
-  let frame = 0;
-  if (f.flash > 0) frame = 4;
-  else if (f.invuln > 0) frame = 3;
-  else if (f.attack?.type === 'heavy') frame = 2;
-  else if (f.attack?.type === 'light') frame = 1;
-  if (speciesSheet) {
-    let speciesFrame = 0;
-    if (f.flash > 0 || f.invuln > 0) speciesFrame = 5;
-    else if (f.attack?.type === 'heavy') speciesFrame = 4;
-    else if (f.attack?.type === 'light') speciesFrame = 3;
-    else if (f.moving) speciesFrame = 1 + (Math.floor(performance.now() / (165 - Math.min(65, f.speed * 5))) % 2);
-    const b = speciesSheet.bounds[speciesFrame], size = { Lambari: .86, 'Tilápia': 1.02, 'Traíra': 1.04, Dourado: 1, Pirarucu: 1.16, 'Bagre Fantasma': 1.03, 'Boss Rei Carniça': 1.24, 'Boss Barão do Lodo': 1.3, 'Boss Voltágua': 1.22 }[speciesName] || 1;
-    const dh = 198 * size, dw = Math.min(225 * size, dh * (b.w / b.h));
-    x.imageSmoothingEnabled = false; x.filter = 'drop-shadow(5px 7px 2px rgba(10,35,37,.38))';
-    x.drawImage(speciesSheet.canvas, b.x, b.y, b.w, b.h, -dw / 2, -dh, dw, dh); x.filter = 'none';
-  } else if (f.moving && !f.attack && f.invuln <= 0 && f.flash <= 0 && walkingSprite) {
-    const sw = walkingSprite.width / 4, sy = 70, sh = Math.min(550, walkingSprite.height - sy);
-    const walkSpeed = 150 - Math.min(60, f.speed * 5), walkFrame = Math.floor(performance.now() / walkSpeed) % 4;
-    const scale = Math.min(1.18, .9 + (f.weight || 1) * .025);
-    x.imageSmoothingEnabled = false;
-    x.filter = fallbackSpeciesFilter(f.name, f.enemy);
-    x.drawImage(walkingSprite, walkFrame * sw, sy, sw, sh, -78 * scale, -199 * scale, 156 * scale, 205 * scale);
-    x.filter = 'none';
-  } else if (fighterSprite.complete && fighterSprite.naturalWidth) {
-    const sw = fighterSprite.naturalWidth / 5, sy = 70, sh = Math.min(600, fighterSprite.naturalHeight - sy);
-    const scale = Math.min(1.18, .9 + (f.weight || 1) * .025);
-    x.imageSmoothingEnabled = false;
-    x.filter = fallbackSpeciesFilter(f.name, f.enemy);
-    x.drawImage(fighterSprite, frame * sw, sy, sw, sh, -64 * scale, -183 * scale, 128 * scale, 200 * scale);
-    x.filter = 'none';
-  } else {
-    x.font = `${80 + Math.min(35, f.weight * 3)}px serif`; x.textAlign = 'center'; x.fillText(f.emoji, 0, 0);
-  }
-  if (f.attack) drawAttackEffect(x, f);
-  x.restore();
-}
-function drawAttackEffect(x, f) {
-  const heavy = f.attack.type === 'heavy', duration = heavy ? .62 : .34;
-  const phase = Math.min(1, f.attack.t / duration), glow = Math.sin(phase * Math.PI);
-  const handX = heavy ? 12 + 55 * Math.min(1, phase * 1.45) : 61 + Math.sin(phase * Math.PI) * 9;
-  const handY = heavy ? -168 + 66 * Math.min(1, phase * 1.45) : -108;
-  x.save(); x.globalAlpha = Math.max(0, glow);
-  const aura = x.createRadialGradient(handX, handY, 2, handX, handY, heavy ? 42 : 26);
-  aura.addColorStop(0, '#fffbe1'); aura.addColorStop(.35, heavy ? '#ffb338' : '#8ff9ee'); aura.addColorStop(1, heavy ? '#ef432900' : '#20b9d000');
-  x.fillStyle = aura; x.beginPath(); x.arc(handX, handY, heavy ? 42 : 26, 0, Math.PI * 2); x.fill();
-  x.lineCap = 'round'; x.lineWidth = heavy ? 13 : 7; x.strokeStyle = heavy ? '#ff7b32cc' : '#b9fff1dd'; x.beginPath();
-  if (heavy) x.arc(4, -117, 78, -1.45 + phase * .45, -.15 + phase * .8); else x.arc(handX - 23, handY, 34 + phase * 25, -.75, .65);
-  x.stroke(); x.lineWidth = heavy ? 4 : 3; x.strokeStyle = '#fff9c9'; x.stroke();
-  for (let i = 0; i < (heavy ? 5 : 3); i++) { const a = phase * 8 + i * 2.1; x.fillStyle = i % 2 ? '#fff5a8' : '#7fffe8'; x.fillRect(handX + Math.cos(a) * (22 + i * 4) - 3, handY + Math.sin(a) * (18 + i * 3) - 3, 6, 6); }
-  x.restore();
-}
-function speciesHue(name) {
-  const clean = name.replace(' Bravo', '');
-  return { Lambari: 0, 'Tilápia': 42, 'Traíra': -45, Dourado: 68, Pirarucu: 145, 'Bagre Fantasma': -18 }[clean] || 0;
-}
-function fallbackSpeciesFilter(name, enemy) {
-  const clean = name.replace(' Bravo', ''), lambariTone = clean === 'Lambari' ? ' saturate(.55) brightness(1.22)' : '';
-  return `hue-rotate(${speciesHue(name)}deg) saturate(${enemy ? 1.08 : 1.18})${lambariTone} drop-shadow(5px 7px 2px rgba(10,35,37,.38))`;
-}
-function updateBattleHud() { $('#playerHp').style.width = `${battle.player.curHp / battle.player.maxHp * 100}%`; $('#enemyHp').style.width = `${battle.enemy.curHp / battle.enemy.maxHp * 100}%`; $('#battleTimer').textContent = Math.max(0, Math.ceil(battle.timer)); }
-function finishBattle(win) {
-  battle.running = false; cancelAnimationFrame(battle.raf); const idx = state.inventory.findIndex(f => f.id === battle.selected.id); if (idx >= 0) state.inventory.splice(idx, 1);
-  const reward = win ? (battle.boss ? battle.enemy.reward + state.bossesFaced * 35 : Math.round(55 + (battle.enemy.maxHp / BATTLE_HP_MULTIPLIER) * .75 + state.wins * 4)) : 0;
-  if (battle.boss) {
-    if (win) { state.fightsSinceBoss = 0; state.bossesFaced++; state.bossWins++; }
-    else state.fightsSinceBoss = 5;
-  } else state.fightsSinceBoss++;
-  if (win) { state.money += reward; state.wins++; } updateHud();
-  $('#resultIcon').textContent = win ? (battle.boss ? '♛' : '🏆') : '💀'; $('#resultEyebrow').textContent = win ? (battle.boss ? 'BOSS DERROTADO!' : 'VITÓRIA NA DOCA!') : 'DERROTA'; $('#resultTitle').textContent = win ? `+${reward} moedas` : `${battle.selected.name} foi perdido`;
-  $('#resultBody').innerHTML = `<p>${win ? (battle.boss ? `${battle.selected.name} venceu ${battle.enemy.name} e conquistou uma recompensa lendária!` : `${battle.selected.name} dominou a arena e entrou para a história do rio.`) : (battle.boss ? `${battle.enemy.name} continua dominando a arena. Seus próximos lutadores enfrentarão este mesmo boss até derrotá-lo.` : 'O rival foi mais forte desta vez. Volte ao lago e treine com um peixe melhor.')}</p><p><b>O lutador deixou seu viveiro após a rinha.</b></p>`;
-  $('#resultPrimary').textContent = battle.boss && !win ? 'Preparar revanche' : 'Voltar para a rinha'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); renderFighters(); }; $('#resultModal').classList.remove('hidden');
+function drawBase(x,pos,color,label){x.fillStyle='#3f2926';x.fillRect(pos-25,195,50,116);x.fillStyle=color;x.beginPath();x.moveTo(pos,190);x.lineTo(pos,105);x.lineTo(pos+(pos<600?65:-65),125);x.lineTo(pos,150);x.fill();x.fillStyle='#fff';x.font='bold 10px Nunito';x.textAlign='center';x.fillText(label,pos,215)}
+function drawUnit(x,u){
+  x.fillStyle='#0b252766';x.beginPath();x.ellipse(u.x,u.y+3,38*u.size,8*u.size,0,0,Math.PI*2);x.fill();x.save();x.translate(u.x,u.y);x.scale(u.dir,1);if(u.hurt>0)x.globalAlpha=.45;
+  let frame=0;if(u.hurt>0)frame=5;else if(u.attack)frame=u.attack.heavy?4:3;else if(u.moving)frame=1+(Math.floor(performance.now()/(150-Math.min(55,u.speed*4)))%2);const sheet=sheets[u.key];
+  if(sheet){const b=sheet.bounds[frame],dh=145*u.size,dw=Math.min(175*u.size,dh*b.w/b.h);x.imageSmoothingEnabled=false;x.filter='drop-shadow(4px 5px 2px #08282a66)';x.drawImage(sheet.canvas,b.x,b.y,b.w,b.h,-dw/2,-dh,dw,dh);x.filter='none'}else{x.font=`${65*u.size}px serif`;x.textAlign='center';x.fillText(u.emoji,0,-10)}x.restore();
+  const barW=58*u.size;x.fillStyle='#301b20';x.fillRect(u.x-barW/2,u.y-155*u.size,barW,7);x.fillStyle=u.team==='ally'?'#44dc89':'#ee6554';x.fillRect(u.x-barW/2,u.y-155*u.size,barW*Math.max(0,u.curHp/u.maxHp),7);if(u.boss){x.fillStyle='#ffd25d';x.font='bold 10px Nunito';x.textAlign='center';x.fillText(`♛ ${u.name}`,u.x,u.y-164*u.size)}
 }
 
-document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); if (fishing.active) setReel(true); else if ($('#lake').classList.contains('active')) startFishing(); } });
-document.addEventListener('keyup', e => { if (e.code === 'Space') setReel(false); });
-
-updateHud(); renderShop();
+updateHud();renderShop();updateLaneHud();requestAnimationFrame(laneLoop);

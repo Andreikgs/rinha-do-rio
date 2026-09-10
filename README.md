@@ -1,34 +1,26 @@
 # Rinha do Rio
 
-Jogo 2D de pesca e combate feito em HTML, CSS e JavaScript puro.
+Jogo 2D de pesca e batalha automática feito em HTML, CSS e JavaScript puro.
+
+A pista usa um cenário pixel art próprio com cais rivais, rio ao pôr do sol e plataforma de batalha.
 
 ## Jogar
-
-Abra `index.html` no navegador ou, nesta pasta, execute:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Depois acesse `http://localhost:8000`.
+Acesse `http://localhost:8000`.
 
-## Controles
+## Como funciona
 
-- Pesca: segure `Espaço` ou o botão para subir a zona de captura; solte para descer.
-- Arena: o combate é automático; os dois peixes se movem, atacam e esquivam por conta própria.
+- A tela principal é dividida horizontalmente: batalha em cima e pesca embaixo.
+- Segure `Espaço` ou o botão de recolher para controlar a zona verde da pesca.
+- Cada peixe capturado é invocado imediatamente pelo lado esquerdo da pista.
+- O time inimigo invoca automaticamente peixes diferentes pelo lado direito.
+- As equipes caminham, atacam e destroem o cais adversário automaticamente.
+- Cada vez que o cais rival é destruído, a vida das próximas invocações inimigas aumenta 10% cumulativamente.
+- A cada 60 segundos, um dos três bosses é invocado pelo time inimigo.
+- Abates e destruição do cais rival rendem moedas para melhorar vara e molinete.
 
-O progresso é salvo automaticamente no navegador.
-
-O pescador possui animação própria de arremesso e recolhimento. Ao entrar na arena,
-cada peixe assume uma forma humanoide animada com poses de ataque leve, ataque
-pesado, esquiva e dano. Durante o deslocamento, um ciclo de quatro quadros anima
-a caminhada dos lutadores com os pés presos à linha do chão.
-
-Cada espécie possui sua própria folha de sprites e silhueta na arena: Lambari ágil,
-Tilápia robusta, Traíra predatória, Dourado atlético, Pirarucu gigante e Bagre
-Fantasma espectral.
-
-Após cinco lutas comuns, o próximo combate é obrigatoriamente contra um dos três
-chefes do rio: Rei Carniça, Barão do Lodo ou Voltágua. Se o jogador perder, esse
-mesmo boss permanece na arena e será o único adversário até ser derrotado. O
-contador só reinicia após a vitória.
+O progresso da oficina e as moedas são salvos automaticamente no navegador.
