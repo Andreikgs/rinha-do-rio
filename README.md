@@ -28,3 +28,7 @@ a caminhada dos lutadores com os pés presos à linha do chão.
 Cada espécie possui sua própria folha de sprites e silhueta na arena: Lambari ágil,
 Tilápia robusta, Traíra predatória, Dourado atlético, Pirarucu gigante e Bagre
 Fantasma espectral.
+
+Após cinco lutas comuns, o próximo combate é obrigatoriamente contra um dos três
+chefes do rio: Rei Carniça, Barão do Lodo ou Voltágua. O contador reinicia depois
+do confronto com o boss, independentemente do resultado.

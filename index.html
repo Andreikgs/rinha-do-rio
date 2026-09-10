@@ -66,13 +66,14 @@
       <section id="arena" class="view page-view arena-page">
         <div id="arenaSelect">
           <div class="page-heading"><div><p class="eyebrow red">DOCA DA DISCÓRDIA</p><h2>Escolha seu lutador</h2><p>O peixe será consumido após a luta — vencendo ou perdendo.</p></div><div class="danger-note">⚠️ SEM VOLTA</div></div>
+          <div id="bossTracker" class="boss-tracker panel"><div class="boss-mark">♛</div><div><small>AMEAÇA DO RIO</small><b id="bossTrackerText">5 lutas até o próximo boss</b></div><div id="bossPips" class="boss-pips"></div></div>
           <div id="fighterGrid" class="inventory-grid fighter-grid"></div>
           <div id="emptyFighters" class="empty-state panel"><span>🫧</span><h3>Nenhum lutador disponível</h3><p>Pesque um peixe primeiro. Quanto mais raro, mais forte.</p><button class="primary" data-view="lake">Ir ao lago</button></div>
         </div>
         <div id="battleWrap" class="battle-wrap hidden">
           <div class="battle-hud">
             <div class="fighter-info"><b id="playerName">Peixe</b><div class="hp"><i id="playerHp"></i></div></div>
-            <div class="round-badge"><span>RINHA</span><b id="battleTimer">70</b></div>
+            <div id="roundBadge" class="round-badge"><span>RINHA</span><b id="battleTimer">70</b></div>
             <div class="fighter-info enemy-info"><b id="enemyName">Rival</b><div class="hp"><i id="enemyHp"></i></div></div>
           </div>
           <canvas id="battleCanvas" width="960" height="480"></canvas>

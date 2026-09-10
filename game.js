@@ -31,15 +31,21 @@ const SPECIES_SHEETS = {
   'Traíra': 'assets/lutador-traira.png',
   Dourado: 'assets/lutador-dourado.png',
   Pirarucu: 'assets/lutador-pirarucu.png',
-  'Bagre Fantasma': 'assets/lutador-bagre-fantasma.png'
+  'Bagre Fantasma': 'assets/lutador-bagre-fantasma.png',
+  'Boss Rei Carniça': 'assets/boss-rei-carnica.png',
+  'Boss Barão do Lodo': 'assets/boss-barao-lodo.png',
+  'Boss Voltágua': 'assets/boss-voltagua.png'
 };
 Object.entries(SPECIES_SHEETS).forEach(([name, src]) => {
   const image = new Image();
-  image.onload = () => { speciesSprites[name] = prepareSpeciesSheet(image); };
+  image.onload = () => {
+    const prepared = prepareSpeciesSheet(image, name);
+    if (prepared.valid) speciesSprites[name] = prepared;
+  };
   image.src = src;
 });
 
-function prepareSpeciesSheet(image) {
+function prepareSpeciesSheet(image, speciesName) {
   const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
   const ctx = canvas.getContext('2d', { willReadFrequently: true }); ctx.drawImage(image, 0, 0);
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height), d = pixels.data, w = canvas.width, h = canvas.height;
@@ -52,24 +58,32 @@ function prepareSpeciesSheet(image) {
     const visit = n => {
       if (seen[n]) return; const ni = n * 4;
       const diff = Math.max(Math.abs(d[pi] - d[ni]), Math.abs(d[pi + 1] - d[ni + 1]), Math.abs(d[pi + 2] - d[ni + 2]));
-      if (diff <= 13) push(n);
+      const edgeTolerance = speciesName === 'Lambari' ? 4 : 13;
+      if (diff <= edgeTolerance) push(n);
     };
     if (px > 0) visit(p - 1); if (px < w - 1) visit(p + 1); if (py > 0) visit(p - w); if (py < h - 1) visit(p + w);
   }
   for (let p = 0; p < seen.length; p++) if (seen[p]) d[p * 4 + 3] = 0;
   ctx.putImageData(pixels, 0, 0);
-  const cellW = w / 3, cellH = h / 2, bounds = [];
+  const cellW = w / 3, cellH = h / 2, bounds = [], framePixels = [];
   for (let frame = 0; frame < 6; frame++) {
     const col = frame % 3, row = (frame / 3) | 0, x0 = Math.floor(col * cellW), y0 = Math.floor(row * cellH), x1 = Math.ceil((col + 1) * cellW), y1 = Math.ceil((row + 1) * cellH);
-    let minX = x1, minY = y1, maxX = x0, maxY = y0;
-    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (d[(y * w + x) * 4 + 3] > 24) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
+    let minX = x1, minY = y1, maxX = x0, maxY = y0, count = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (d[(y * w + x) * 4 + 3] > 24) { count++; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
+    framePixels.push(count);
     bounds.push(maxX > minX ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : { x: x0, y: y0, w: cellW, h: cellH });
   }
-  return { canvas, bounds };
+  const valid = framePixels.every(count => count > 1800);
+  return { canvas, bounds, valid };
 }
 const BATTLE_HP_MULTIPLIER = 1.75;
+const BOSSES = [
+  { name: 'Rei Carniça', spriteKey: 'Boss Rei Carniça', emoji: '👑', hp: 250, atk: 23, speed: 10, weight: 8, reward: 450 },
+  { name: 'Barão do Lodo', spriteKey: 'Boss Barão do Lodo', emoji: '🪨', hp: 340, atk: 20, speed: 4, weight: 12, reward: 520 },
+  { name: 'Voltágua', spriteKey: 'Boss Voltágua', emoji: '⚡', hp: 230, atk: 26, speed: 12, weight: 7, reward: 560 }
+];
 const rarityClass = r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const baseState = { money: 70, rod: 1, reel: 1, wins: 0, catches: 0, inventory: [] };
+const baseState = { money: 70, rod: 1, reel: 1, wins: 0, catches: 0, fightsSinceBoss: 0, bossesFaced: 0, bossWins: 0, inventory: [] };
 let state;
 try { state = { ...baseState, ...JSON.parse(localStorage.getItem('rinhaDoRio')) }; } catch { state = { ...baseState }; }
 const save = () => localStorage.setItem('rinhaDoRio', JSON.stringify(state));
@@ -117,6 +131,10 @@ function renderFighters() {
   const grid = $('#fighterGrid'); grid.innerHTML = '';
   state.inventory.forEach(f => grid.append(fishCard(f, 'fighter')));
   $('#emptyFighters').classList.toggle('hidden', state.inventory.length > 0);
+  const ready = state.fightsSinceBoss >= 5, remaining = Math.max(0, 5 - state.fightsSinceBoss);
+  $('#bossTracker').classList.toggle('ready', ready);
+  $('#bossTrackerText').textContent = ready ? 'BOSS PRONTO — escolha seu campeão!' : `${remaining} luta${remaining === 1 ? '' : 's'} até o próximo boss`;
+  $('#bossPips').innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${i < state.fightsSinceBoss ? 'on' : ''}"></i>`).join('');
 }
 function sellFish(id) {
   const idx = state.inventory.findIndex(f => f.id === id); if (idx < 0) return;
@@ -191,15 +209,22 @@ function showCatchResult(f) {
   $('#resultPrimary').textContent = 'Guardar no viveiro'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); showView('inventory'); }; $('#resultModal').classList.remove('hidden');
 }
 
-const battle = { running: false, keys: {}, last: 0, timer: 70, selected: null, player: null, enemy: null, particles: [], shake: 0, raf: 0 };
+const battle = { running: false, boss: false, keys: {}, last: 0, timer: 70, selected: null, player: null, enemy: null, particles: [], shake: 0, raf: 0 };
 function makeFighter(f, enemy = false) { const battleHp = Math.round(f.hp * BATTLE_HP_MULTIPLIER); return { ...f, x: enemy ? 730 : 140, y: 405, dir: enemy ? -1 : 1, maxHp: battleHp, curHp: battleHp, cooldown: 0, invuln: 0, flash: 0, attack: null, moving: false, enemy }; }
 function startBattle(id) {
   const f = state.inventory.find(x => x.id === id); if (!f) return;
-  const tier = Math.min(FISH.length - 1, Math.max(0, FISH.findIndex(x => x.name === f.name) + (Math.random() > .65 ? 1 : 0)));
-  const base = FISH[tier], scale = .92 + state.wins * .025 + Math.random() * .12;
-  const rival = { ...base, name: `${base.name} Bravo`, hp: Math.round(base.hp * scale), atk: Math.round(base.atk * scale), speed: base.speed, quality: 2, weight: 1 };
-  battle.selected = f; battle.player = makeFighter(f); battle.enemy = makeFighter(rival, true); battle.timer = 70; battle.running = true; battle.particles = []; battle.shake = 0; battle.last = performance.now();
-  $('#arenaSelect').classList.add('hidden'); $('#battleWrap').classList.remove('hidden'); $('#playerName').textContent = f.name; $('#enemyName').textContent = rival.name; updateBattleHud(); battle.raf = requestAnimationFrame(battleLoop);
+  const bossFight = state.fightsSinceBoss >= 5; let rival;
+  if (bossFight) {
+    const boss = BOSSES[state.bossesFaced % BOSSES.length], scale = 1 + state.bossesFaced * .04;
+    rival = { ...boss, hp: Math.round(boss.hp * scale), atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5 };
+  } else {
+    const tier = Math.min(FISH.length - 1, Math.max(0, FISH.findIndex(x => x.name === f.name) + (Math.random() > .65 ? 1 : 0)));
+    const base = FISH[tier], scale = .92 + state.wins * .025 + Math.random() * .12;
+    rival = { ...base, name: `${base.name} Bravo`, hp: Math.round(base.hp * scale), atk: Math.round(base.atk * scale), speed: base.speed, quality: 2, weight: 1 };
+  }
+  battle.boss = bossFight; battle.selected = f; battle.player = makeFighter(f); battle.enemy = makeFighter(rival, true); battle.timer = bossFight ? 90 : 70; battle.running = true; battle.particles = []; battle.shake = 0; battle.last = performance.now();
+  $('#arenaSelect').classList.add('hidden'); $('#battleWrap').classList.remove('hidden'); $('#playerName').textContent = f.name; $('#enemyName').textContent = bossFight ? `♛ ${rival.name}` : rival.name;
+  $('#roundBadge').classList.toggle('boss', bossFight); $('#roundBadge span').textContent = bossFight ? 'BOSS' : 'RINHA'; updateBattleHud(); battle.raf = requestAnimationFrame(battleLoop);
 }
 function attack(who, type) {
   if (who.cooldown > 0 || who.attack) return;
@@ -221,7 +246,7 @@ function battleLoop(now) {
   const p = battle.player, e = battle.enemy;
   p.moving = false; e.moving = false;
   if (!p.attack) { if (battle.keys.KeyA) { p.x -= (125 + p.speed * 5) * dt; p.moving = true; } if (battle.keys.KeyD) { p.x += (125 + p.speed * 5) * dt; p.moving = true; } }
-  const dist = Math.abs(p.x - e.x); if (!e.attack) { if (dist > 105) { e.x += Math.sign(p.x - e.x) * (105 + e.speed * 4) * dt; e.moving = true; } else if (e.cooldown <= 0 && Math.random() < dt * 2.4) Math.random() < .28 ? attack(e, 'heavy') : attack(e, 'light'); if (dist < 85 && Math.random() < dt * .5) dodge(e); }
+  const dist = Math.abs(p.x - e.x), aggression = battle.boss ? 3.1 : 2.4; if (!e.attack) { if (dist > 105) { e.x += Math.sign(p.x - e.x) * (105 + e.speed * 4) * dt; e.moving = true; } else if (e.cooldown <= 0 && Math.random() < dt * aggression) Math.random() < (battle.boss ? .38 : .28) ? attack(e, 'heavy') : attack(e, 'light'); if (dist < 85 && Math.random() < dt * .5) dodge(e); }
   updateFighter(p, e, dt); updateFighter(e, p, dt); battle.shake = Math.max(0, battle.shake - dt * 34); battle.particles.forEach(q => { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 320 * dt; q.t -= dt; }); battle.particles = battle.particles.filter(q => q.t > 0);
   drawBattle(); updateBattleHud(); if (p.curHp <= 0 || e.curHp <= 0 || battle.timer <= 0) return finishBattle(e.curHp < p.curHp); battle.raf = requestAnimationFrame(battleLoop);
 }
@@ -241,7 +266,7 @@ function drawBattle() {
 function drawFighter(x, f) {
   x.save(); x.translate(f.x, f.y); x.scale(f.dir, 1); if (f.flash > 0) x.globalAlpha = .55;
   if (f.invuln > 0) { x.strokeStyle = '#c8fff4'; x.lineWidth = 6; x.beginPath(); x.arc(0, -42, 65, 0, Math.PI * 2); x.stroke(); }
-  const speciesName = f.name.replace(' Bravo', ''), speciesSheet = speciesSprites[speciesName];
+  const speciesName = f.spriteKey || f.name.replace(' Bravo', ''), speciesSheet = speciesSprites[speciesName];
   let frame = 0;
   if (f.flash > 0) frame = 4;
   else if (f.invuln > 0) frame = 3;
@@ -253,7 +278,7 @@ function drawFighter(x, f) {
     else if (f.attack?.type === 'heavy') speciesFrame = 4;
     else if (f.attack?.type === 'light') speciesFrame = 3;
     else if (f.moving) speciesFrame = 1 + (Math.floor(performance.now() / (165 - Math.min(65, f.speed * 5))) % 2);
-    const b = speciesSheet.bounds[speciesFrame], size = { Lambari: .86, 'Tilápia': 1.02, 'Traíra': 1.04, Dourado: 1, Pirarucu: 1.16, 'Bagre Fantasma': 1.03 }[speciesName] || 1;
+    const b = speciesSheet.bounds[speciesFrame], size = { Lambari: .86, 'Tilápia': 1.02, 'Traíra': 1.04, Dourado: 1, Pirarucu: 1.16, 'Bagre Fantasma': 1.03, 'Boss Rei Carniça': 1.24, 'Boss Barão do Lodo': 1.3, 'Boss Voltágua': 1.22 }[speciesName] || 1;
     const dh = 198 * size, dw = Math.min(225 * size, dh * (b.w / b.h));
     x.imageSmoothingEnabled = false; x.filter = 'drop-shadow(5px 7px 2px rgba(10,35,37,.38))';
     x.drawImage(speciesSheet.canvas, b.x, b.y, b.w, b.h, -dw / 2, -dh, dw, dh); x.filter = 'none';
@@ -262,14 +287,14 @@ function drawFighter(x, f) {
     const walkSpeed = 150 - Math.min(60, f.speed * 5), walkFrame = Math.floor(performance.now() / walkSpeed) % 4;
     const scale = Math.min(1.18, .9 + (f.weight || 1) * .025);
     x.imageSmoothingEnabled = false;
-    x.filter = `hue-rotate(${speciesHue(f.name)}deg) saturate(${f.enemy ? 1.08 : 1.18}) drop-shadow(5px 7px 2px rgba(10,35,37,.38))`;
+    x.filter = fallbackSpeciesFilter(f.name, f.enemy);
     x.drawImage(walkingSprite, walkFrame * sw, sy, sw, sh, -78 * scale, -199 * scale, 156 * scale, 205 * scale);
     x.filter = 'none';
   } else if (fighterSprite.complete && fighterSprite.naturalWidth) {
     const sw = fighterSprite.naturalWidth / 5, sy = 70, sh = Math.min(600, fighterSprite.naturalHeight - sy);
     const scale = Math.min(1.18, .9 + (f.weight || 1) * .025);
     x.imageSmoothingEnabled = false;
-    x.filter = `hue-rotate(${speciesHue(f.name)}deg) saturate(${f.enemy ? 1.08 : 1.18}) drop-shadow(5px 7px 2px rgba(10,35,37,.38))`;
+    x.filter = fallbackSpeciesFilter(f.name, f.enemy);
     x.drawImage(fighterSprite, frame * sw, sy, sw, sh, -64 * scale, -183 * scale, 128 * scale, 200 * scale);
     x.filter = 'none';
   } else {
@@ -297,12 +322,18 @@ function speciesHue(name) {
   const clean = name.replace(' Bravo', '');
   return { Lambari: 0, 'Tilápia': 42, 'Traíra': -45, Dourado: 68, Pirarucu: 145, 'Bagre Fantasma': -18 }[clean] || 0;
 }
+function fallbackSpeciesFilter(name, enemy) {
+  const clean = name.replace(' Bravo', ''), lambariTone = clean === 'Lambari' ? ' saturate(.55) brightness(1.22)' : '';
+  return `hue-rotate(${speciesHue(name)}deg) saturate(${enemy ? 1.08 : 1.18})${lambariTone} drop-shadow(5px 7px 2px rgba(10,35,37,.38))`;
+}
 function updateBattleHud() { $('#playerHp').style.width = `${battle.player.curHp / battle.player.maxHp * 100}%`; $('#enemyHp').style.width = `${battle.enemy.curHp / battle.enemy.maxHp * 100}%`; $('#battleTimer').textContent = Math.max(0, Math.ceil(battle.timer)); }
 function finishBattle(win) {
   battle.running = false; cancelAnimationFrame(battle.raf); const idx = state.inventory.findIndex(f => f.id === battle.selected.id); if (idx >= 0) state.inventory.splice(idx, 1);
-  const reward = win ? Math.round(55 + (battle.enemy.maxHp / BATTLE_HP_MULTIPLIER) * .75 + state.wins * 4) : 0; if (win) { state.money += reward; state.wins++; } updateHud();
-  $('#resultIcon').textContent = win ? '🏆' : '💀'; $('#resultEyebrow').textContent = win ? 'VITÓRIA NA DOCA!' : 'DERROTA'; $('#resultTitle').textContent = win ? `+${reward} moedas` : `${battle.selected.name} foi perdido`;
-  $('#resultBody').innerHTML = `<p>${win ? `${battle.selected.name} dominou a arena e entrou para a história do rio.` : 'O rival foi mais forte desta vez. Volte ao lago e treine com um peixe melhor.'}</p><p><b>O lutador deixou seu viveiro após a rinha.</b></p>`;
+  const reward = win ? (battle.boss ? battle.enemy.reward + state.bossesFaced * 35 : Math.round(55 + (battle.enemy.maxHp / BATTLE_HP_MULTIPLIER) * .75 + state.wins * 4)) : 0;
+  if (battle.boss) { state.fightsSinceBoss = 0; state.bossesFaced++; if (win) state.bossWins++; } else state.fightsSinceBoss++;
+  if (win) { state.money += reward; state.wins++; } updateHud();
+  $('#resultIcon').textContent = win ? (battle.boss ? '♛' : '🏆') : '💀'; $('#resultEyebrow').textContent = win ? (battle.boss ? 'BOSS DERROTADO!' : 'VITÓRIA NA DOCA!') : 'DERROTA'; $('#resultTitle').textContent = win ? `+${reward} moedas` : `${battle.selected.name} foi perdido`;
+  $('#resultBody').innerHTML = `<p>${win ? (battle.boss ? `${battle.selected.name} venceu ${battle.enemy.name} e conquistou uma recompensa lendária!` : `${battle.selected.name} dominou a arena e entrou para a história do rio.`) : `O ${battle.boss ? 'boss' : 'rival'} foi mais forte desta vez. Volte ao lago e treine com um peixe melhor.`}</p><p><b>O lutador deixou seu viveiro após a rinha.</b></p>`;
   $('#resultPrimary').textContent = 'Voltar para a rinha'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); renderFighters(); }; $('#resultModal').classList.remove('hidden');
 }
 
