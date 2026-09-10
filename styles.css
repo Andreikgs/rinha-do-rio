@@ -17,3 +17,6 @@
 .target-fish{left:24px;font-size:54px}
 .progress-shell{height:350px;width:30px;left:calc(50% + 82px);border-radius:15px}
 @media(max-width:760px){.fishing-game{height:390px}.fish-track{height:350px;width:108px}.catch-zone{width:88px}.target-fish{left:21px}.progress-shell{height:350px;width:28px;left:calc(50% + 76px)}}
+
+#rodSegments{display:grid;grid-template-columns:repeat(10,1fr);gap:5px}
+#rodSegments i{min-width:0}

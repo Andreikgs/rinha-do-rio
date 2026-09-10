@@ -125,15 +125,15 @@ function sellFish(id) {
 }
 
 function renderShop() {
-  const configs = [['rod', 'Vara', 90, 'buyRod'], ['reel', 'Molinete', 75, 'buyReel']];
-  configs.forEach(([key, name, base, buttonId]) => {
-    const lvl = state[key], cost = Math.round(base * Math.pow(1.75, lvl - 1));
+  const configs = [['rod', 'Vara', 90, 'buyRod', 20], ['reel', 'Molinete', 75, 'buyReel', 5]];
+  configs.forEach(([key, name, base, buttonId, maxLevel]) => {
+    const lvl = state[key], growth = key === 'rod' ? 1.32 : 1.75, cost = Math.round(base * Math.pow(growth, lvl - 1));
     $(`#${key}Level`).textContent = `NÍVEL ${lvl}`;
-    $(`#${key}Segments`).innerHTML = Array.from({ length: 5 }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+    $(`#${key}Segments`).innerHTML = Array.from({ length: maxLevel }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
     const btn = $(`#${buttonId}`);
-    btn.textContent = lvl >= 5 ? 'MÁXIMO' : `MELHORAR · ${cost} 🪙`;
-    btn.disabled = lvl >= 5 || state.money < cost;
-    btn.onclick = () => { if (state.money < cost || state[key] >= 5) return; state.money -= cost; state[key]++; updateHud(); renderShop(); toast(`${name} melhorado para o nível ${state[key]}!`); };
+    btn.textContent = lvl >= maxLevel ? 'MÁXIMO' : `MELHORAR · ${cost} 🪙`;
+    btn.disabled = lvl >= maxLevel || state.money < cost;
+    btn.onclick = () => { if (state.money < cost || state[key] >= maxLevel) return; state.money -= cost; state[key]++; updateHud(); renderShop(); toast(`${name} melhorado para o nível ${state[key]}!`); };
   });
 }
 
