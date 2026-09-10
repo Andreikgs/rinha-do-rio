@@ -4,7 +4,7 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102a2d">
   <title>Rinha do Rio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=split-arena-2">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css?v=tycoon-3">
 </head>
 <body>
   <header class="topbar"><button class="brand" data-view="lake"><span class="brand-fish">◖)))&lt;</span><span><b>Rinha</b> do Rio</span></button><nav><button class="nav-btn active" data-view="lake"><span>⚔️</span> Rio vivo</button><button class="nav-btn" data-view="shop"><span>🔨</span> Oficina</button></nav><div class="money"><span>🪙</span><strong id="money">0</strong></div></header>
@@ -16,15 +16,15 @@
         <canvas id="laneCanvas" width="1200" height="380" aria-label="Pista de batalha automática"></canvas>
         <div class="lane-footer"><span>🐟 Seu time: <b id="allyCount">0</b></span><strong id="laneMessage">Pesque para invocar seu primeiro lutador!</strong><span>Rivais: <b id="enemyCount">0</b> 👹</span></div>
       </section>
-      <section class="fishing-half"><div class="fishing-shade"></div><div class="fishing-label"><span>🎣</span><div><b>ZONA DE PESCA</b><small>Toda captura entra direto na pista</small></div></div><div id="anglerSprite" class="angler-sprite"></div>
-        <div id="idleFishing" class="idle-fishing"><div class="bobber"><span></span></div><button id="castBtn" class="primary huge">🪝 LANÇAR LINHA <small>ESPAÇO</small></button><p><i></i> A água está borbulhando...</p></div>
-        <div id="inlineFishing" class="inline-fishing panel hidden"><div class="fish-instructions"><p class="eyebrow">PEIXE NO ANZOL!</p><b>Mantenha o peixe na zona verde</b></div><div class="mini-game"><div id="fishTrack" class="fish-track"><div id="catchZone" class="catch-zone"></div><div id="targetFish" class="target-fish">🐟</div></div><div class="progress-shell"><i id="catchProgress"></i></div></div><button id="reelBtn" class="primary reel-button">SEGURE PARA RECOLHER <small>ESPAÇO / TOQUE</small></button></div>
-        <div class="quick-stats panel"><div><span>🎣</span><p>Vara <b id="rodQuick">Nível 1</b></p></div><div><span>⚙️</span><p>Molinete <b id="reelQuick">Nível 1</b></p></div><div><span>🏆</span><p>Abates <b id="winsQuick">0</b></p></div></div>
+      <section class="fishing-half tycoon-half"><div class="fishing-shade"></div><div class="fishing-label"><span>🏕️</span><div><b>ACAMPAMENTO DE PESCA</b><small>Sua equipe trabalha sem parar</small></div></div>
+        <div class="fishermen-stage"><div id="fishermenStage" class="fishermen-row"></div><div id="extraFishermen" class="extra-fishermen hidden"></div><div id="lastCatch" class="last-catch">🎣 Aguardando a primeira captura...</div></div>
+        <aside class="tycoon-panel panel"><div class="tycoon-heading"><div><p class="eyebrow">EQUIPE DE PESCA</p><h3><span id="fishermenCount">1</span> pescador</h3></div><span class="auto-pill">● AUTOMÁTICO</span></div><div class="production-row"><span>Próxima captura</span><b id="catchRate">0 peixes/min</b></div><div class="catch-timer"><i id="autoCatchProgress"></i><span id="catchTimerText">Preparando as linhas...</span></div><p class="tycoon-help">Cada captura invoca um novo lutador no seu time.</p><button id="hireFisherman" class="primary hire-button">CONTRATAR PESCADOR</button></aside>
+        <div class="quick-stats panel"><div><span>🎣</span><p>Vara <b id="rodQuick">Nível 1</b></p></div><div><span>⚙️</span><p>Velocidade <b id="reelQuick">Nível 1</b></p></div><div><span>🏆</span><p>Abates <b id="winsQuick">0</b></p></div></div>
       </section>
     </div></section>
-    <section id="shop" class="view page-view"><div class="page-heading"><div><p class="eyebrow">OFICINA DO ZÉ</p><h2>Melhore seu equipamento</h2><p>Encontre lutadores melhores e torne a captura mais controlável.</p></div><button class="primary" data-view="lake">Voltar à batalha</button></div><div class="shop-grid">
+    <section id="shop" class="view page-view"><div class="page-heading"><div><p class="eyebrow">OFICINA DO ZÉ</p><h2>Melhore seu equipamento</h2><p>Encontre lutadores melhores e torne sua equipe mais produtiva.</p></div><button class="primary" data-view="lake">Voltar à batalha</button></div><div class="shop-grid">
       <article class="upgrade-card panel"><div class="upgrade-art">🎣</div><div class="level-pill" id="rodLevel">NÍVEL 1</div><h3>Vara de Bambu</h3><p>Aumenta a chance de fisgar peixes raros, grandes e fortes.</p><div class="meter-row"><span>Qualidade</span><div class="segments" id="rodSegments"></div></div><button id="buyRod" class="primary buy-btn"></button></article>
-      <article class="upgrade-card panel"><div class="upgrade-art">⚙️</div><div class="level-pill" id="reelLevel">NÍVEL 1</div><h3>Molinete de Madeira</h3><p>Aumenta a zona verde e reduz a perda de progresso.</p><div class="meter-row"><span>Controle</span><div class="segments" id="reelSegments"></div></div><button id="buyReel" class="primary buy-btn"></button></article>
+      <article class="upgrade-card panel"><div class="upgrade-art">⚙️</div><div class="level-pill" id="reelLevel">NÍVEL 1</div><h3>Molinete de Madeira</h3><p>Reduz o intervalo entre as capturas de toda a equipe.</p><div class="meter-row"><span>Velocidade</span><div class="segments" id="reelSegments"></div></div><button id="buyReel" class="primary buy-btn"></button></article>
     </div></section>
-  </main><div id="toast" class="toast"></div><script src="game.js?v=split-arena-2"></script>
+  </main><div id="toast" class="toast"></div><script src="game.js?v=tycoon-3"></script>
 </body></html>

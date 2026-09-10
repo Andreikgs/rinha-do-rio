@@ -40,10 +40,11 @@ function prepareSheet(image) {
   return { canvas, bounds };
 }
 
-const defaults = { money:70, rod:1, reel:1, wins:0, catches:0 };
+const defaults = { money:70, rod:1, reel:1, fishermen:1, wins:0, catches:0 };
 let state; try { state={...defaults,...JSON.parse(localStorage.getItem('rinhaDoRio'))}; } catch { state={...defaults}; }
+state.fishermen=Math.max(1,Math.floor(state.fishermen||1));
 const save = () => localStorage.setItem('rinhaDoRio', JSON.stringify(state));
-function updateHud(){ $('#money').textContent=state.money; $('#rodQuick').textContent=`Nível ${state.rod}`; $('#reelQuick').textContent=`Nível ${state.reel}`; $('#winsQuick').textContent=state.wins; save(); }
+function updateHud(){ $('#money').textContent=state.money; $('#rodQuick').textContent=`Nível ${state.rod}`; $('#reelQuick').textContent=`Nível ${state.reel}`; $('#winsQuick').textContent=state.wins; if($('#fishermenCount'))updateTycoonHud();save(); }
 function showView(id){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===id)); $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===id)); if(id==='shop')renderShop(); }
 $$('[data-view]').forEach(b=>b.onclick=()=>showView(b.dataset.view));
 let toastTimer; function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
@@ -57,33 +58,21 @@ function renderShop(){
   });
 }
 
-const fishing={active:false,preparing:false,holding:false,zone:0,vel:0,fish:110,target:110,progress:22,last:0,raf:0,catch:null};
 function chooseFish(){
   const boost=(state.rod-1)*4,weights=FISH.map((f,i)=>Math.max(1,f.chance+(i<2?-boost:boost*(i/8))));let roll=Math.random()*weights.reduce((a,b)=>a+b,0),chosen=FISH[0];
   for(let i=0;i<FISH.length;i++){roll-=weights[i];if(roll<=0){chosen=FISH[i];break}}
   const quality=Math.min(5,1+Math.floor(Math.random()*Math.max(1,state.rod+1))),weight=+(0.4+Math.random()*(1.5+FISH.indexOf(chosen)*1.2)+state.rod*.08).toFixed(1),mult=1+(quality-1)*.09+weight*.025;
   return {...chosen,quality,weight,hp:Math.round(chosen.hp*mult),atk:Math.round(chosen.atk*mult),speed:Math.round(chosen.speed+quality*.35),difficulty:.72+FISH.indexOf(chosen)*.16+weight*.04};
 }
-function startFishing(){
-  if(fishing.active||fishing.preparing)return;fishing.preparing=true;$('#castBtn').disabled=true;$('#anglerSprite').className='angler-sprite casting';
-  setTimeout(()=>{fishing.preparing=false;fishing.active=true;fishing.holding=false;fishing.zone=0;fishing.vel=0;fishing.fish=105;fishing.target=105;fishing.progress=22;fishing.catch=chooseFish();fishing.last=performance.now();
-    const zoneH=72+state.reel*7;$('#catchZone').style.height=`${zoneH}px`;$('#targetFish').textContent=fishing.catch.emoji;$('#idleFishing').classList.add('hidden');$('#inlineFishing').classList.remove('hidden');$('#anglerSprite').className='angler-sprite reeling';fishing.raf=requestAnimationFrame(fishingLoop)},700);
-}
-function fishingLoop(now){
-  if(!fishing.active)return;const dt=Math.min(.032,(now-fishing.last)/1000);fishing.last=now;const track=$('#fishTrack').clientHeight-8,zoneH=72+state.reel*7;
-  fishing.vel+=(fishing.holding?470:-370)*dt;fishing.vel*=.92;fishing.zone=Math.max(0,Math.min(track-zoneH,fishing.zone+fishing.vel*dt));
-  if(Math.abs(fishing.fish-fishing.target)<7)fishing.target=10+Math.random()*(track-40);fishing.fish+=(fishing.target-fishing.fish)*dt*(1.25+fishing.catch.difficulty)+Math.sin(now/170)*fishing.catch.difficulty*.45;
-  const inside=fishing.fish+20>fishing.zone&&fishing.fish+20<fishing.zone+zoneH,gain=19,loss=Math.max(1.4,3.25-state.reel*.3)*1.75;fishing.progress=Math.max(0,Math.min(100,fishing.progress+(inside?gain:-loss)*dt));
-  $('#catchZone').style.bottom=`${fishing.zone}px`;$('#targetFish').style.bottom=`${fishing.fish}px`;$('#catchProgress').style.height=`${fishing.progress}%`;
-  if(fishing.progress>=100)return endFishing(true);if(fishing.progress<=0)return endFishing(false);fishing.raf=requestAnimationFrame(fishingLoop);
-}
-function endFishing(success){
-  fishing.active=false;fishing.holding=false;cancelAnimationFrame(fishing.raf);$('#inlineFishing').classList.add('hidden');$('#idleFishing').classList.remove('hidden');$('#castBtn').disabled=false;$('#anglerSprite').className='angler-sprite';
-  if(success){state.catches++;spawnAlly(fishing.catch);updateHud();toast(`${fishing.catch.name} ${'★'.repeat(fishing.catch.quality)} entrou na batalha!`)}else toast('O peixe escapou! Tente outra vez.');
-}
-function setReel(on){fishing.holding=on} $('#castBtn').onclick=startFishing;
-['mousedown','touchstart'].forEach(e=>$('#reelBtn').addEventListener(e,x=>{x.preventDefault();setReel(true)},{passive:false}));['mouseup','mouseleave','touchend','touchcancel'].forEach(e=>$('#reelBtn').addEventListener(e,()=>setReel(false)));
-document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();if(fishing.active)setReel(true);else if($('#lake').classList.contains('active'))startFishing()}});document.addEventListener('keyup',e=>{if(e.code==='Space')setReel(false)});
+const tycoon={progress:0,last:performance.now()};
+const MAX_FISHERMEN=20;
+function fishermanCost(){return Math.round(65*Math.pow(1.38,state.fishermen-1))}
+function catchInterval(){const equipment=Math.max(5.8,10.5-state.reel*.75),teamPower=1+(state.fishermen-1)*.48;return Math.max(1.65,equipment/teamPower)}
+function renderFishermen(){const visible=Math.min(10,state.fishermen);$('#fishermenStage').innerHTML=Array.from({length:visible},(_,i)=>{const row=i>=5?1:0,x=5+(i%5)*18,y=row?74:0,scale=row ? .78 : 1;return `<i class="tycoon-fisherman" style="--x:${x}%;--y:${y}px;--scale:${scale};--delay:${-(i*.23)}s"></i>`}).join('');const extra=$('#extraFishermen');extra.classList.toggle('hidden',state.fishermen<=visible);extra.textContent=`+${state.fishermen-visible} pescadores`}
+function updateTycoonHud(){const interval=catchInterval(),cost=fishermanCost();$('#fishermenCount').textContent=state.fishermen;$('.tycoon-heading h3').lastChild.textContent=state.fishermen===1?' pescador':' pescadores';$('#catchRate').textContent=`${(60/interval).toFixed(1)} peixes/min`;const button=$('#hireFisherman');button.disabled=state.fishermen>=MAX_FISHERMEN||state.money<cost;button.textContent=state.fishermen>=MAX_FISHERMEN?'EQUIPE COMPLETA':`CONTRATAR · ${cost} 🪙`}
+function automaticCatch(){const fish=chooseFish();state.catches++;spawnAlly(fish);$('#lastCatch').textContent=`${fish.emoji} ${fish.name} ${'★'.repeat(fish.quality)} foi enviado à batalha!`;$('#lastCatch').classList.remove('flash');requestAnimationFrame(()=>$('#lastCatch').classList.add('flash'));updateHud()}
+function tycoonLoop(now){const dt=Math.min(.2,(now-tycoon.last)/1000);tycoon.last=now;tycoon.progress+=dt/catchInterval()*100;if(tycoon.progress>=100){tycoon.progress-=100;automaticCatch()}$('#autoCatchProgress').style.width=`${Math.min(100,tycoon.progress)}%`;$('#catchTimerText').textContent=`Peixe em ${Math.max(.1,catchInterval()*(1-tycoon.progress/100)).toFixed(1)}s`;requestAnimationFrame(tycoonLoop)}
+$('#hireFisherman').onclick=()=>{const cost=fishermanCost();if(state.fishermen>=MAX_FISHERMEN||state.money<cost)return;state.money-=cost;state.fishermen++;renderFishermen();updateHud();toast(`Novo pescador contratado! Equipe: ${state.fishermen}`)};
 
 const lane={units:[],particles:[],last:performance.now(),enemySpawn:2,bossTimer:60,bossIndex:0,elapsed:0,allyBase:700,enemyBase:700,maxBase:700,enemyHpMultiplier:1,messageTimer:0};
 function makeUnit(data,team,boss=false){const id=globalThis.crypto?.randomUUID?.()||Math.random(),teamMultiplier=team==='enemy'?lane.enemyHpMultiplier:1,maxHp=Math.round(data.hp*(boss?1.25:1.45)*teamMultiplier);return{...data,id,team,boss,key:boss?data.key:data.name,x:team==='ally'?115:1085,y:315+(Math.random()-.5)*10,dir:team==='ally'?1:-1,maxHp,curHp:maxHp,cooldown:.3+Math.random()*.4,attack:null,moving:false,hurt:0,dead:false,size:boss?data.size:(SIZE[data.name]||.9)}}
@@ -128,4 +117,4 @@ function drawUnit(x,u){
   const barW=58*u.size;x.fillStyle='#301b20';x.fillRect(u.x-barW/2,u.y-155*u.size,barW,7);x.fillStyle=u.team==='ally'?'#44dc89':'#ee6554';x.fillRect(u.x-barW/2,u.y-155*u.size,barW*Math.max(0,u.curHp/u.maxHp),7);if(u.boss){x.fillStyle='#ffd25d';x.font='bold 10px Nunito';x.textAlign='center';x.fillText(`♛ ${u.name}`,u.x,u.y-164*u.size)}
 }
 
-updateHud();renderShop();updateLaneHud();requestAnimationFrame(laneLoop);
+renderFishermen();updateHud();renderShop();updateLaneHud();requestAnimationFrame(tycoonLoop);requestAnimationFrame(laneLoop);
