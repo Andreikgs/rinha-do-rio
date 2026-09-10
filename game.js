@@ -40,9 +40,10 @@ function prepareSheet(image) {
   return { canvas, bounds };
 }
 
-const defaults = { money:70, rod:1, reel:1, fishermen:1, wins:0, catches:0 };
+const defaults = { money:70, rod:1, reel:1, fishermen:1, damageUpgrades:0, wins:0, catches:0 };
 let state; try { state={...defaults,...JSON.parse(localStorage.getItem('rinhaDoRio'))}; } catch { state={...defaults}; }
 state.fishermen=Math.max(1,Math.floor(state.fishermen||1));
+state.damageUpgrades=Math.max(0,Math.floor(state.damageUpgrades||0));
 const save = () => localStorage.setItem('rinhaDoRio', JSON.stringify(state));
 function updateHud(){ $('#money').textContent=state.money; $('#rodQuick').textContent=`Nível ${state.rod}`; $('#reelQuick').textContent=`Nível ${state.reel}`; $('#winsQuick').textContent=state.wins; if($('#fishermenCount'))updateTycoonHud();save(); }
 function showView(id){ $$('.view').forEach(v=>v.classList.toggle('active',v.id===id)); $$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===id)); if(id==='shop')renderShop(); }
@@ -56,6 +57,10 @@ function renderShop(){
     const btn=$(`#${id}`);btn.textContent=level>=max?'MÁXIMO':`MELHORAR · ${cost} 🪙`;btn.disabled=level>=max||state.money<cost;
     btn.onclick=()=>{if(state.money<cost||state[key]>=max)return;state.money-=cost;state[key]++;updateHud();renderShop();toast(`${label} melhorado para o nível ${state[key]}!`)};
   });
+  const damageCost=100*Math.pow(2,state.damageUpgrades),damageButton=$('#buyDamage');
+  $('#damageLevel').textContent=`NÍVEL ${state.damageUpgrades} · SEM LIMITE`;$('#damageBonus').textContent=`+${state.damageUpgrades*10}`;
+  damageButton.textContent=`TREINAR · ${damageCost.toLocaleString('pt-BR')} 🪙`;damageButton.disabled=state.money<damageCost;
+  damageButton.onclick=()=>{if(state.money<damageCost)return;state.money-=damageCost;state.damageUpgrades++;lane.units.filter(u=>u.team==='ally'&&!u.dead).forEach(u=>u.atk+=10);updateHud();renderShop();toast(`Treino concluído! Peixes aliados ganharam +10 de dano.`)};
 }
 
 function chooseFish(){
@@ -74,8 +79,8 @@ function automaticCatch(){const fish=chooseFish();state.catches++;spawnAlly(fish
 function tycoonLoop(now){const dt=Math.min(.2,(now-tycoon.last)/1000);tycoon.last=now;tycoon.progress+=dt/catchInterval()*100;if(tycoon.progress>=100){tycoon.progress-=100;automaticCatch()}$('#autoCatchProgress').style.width=`${Math.min(100,tycoon.progress)}%`;$('#catchTimerText').textContent=`Peixe em ${Math.max(.1,catchInterval()*(1-tycoon.progress/100)).toFixed(1)}s`;requestAnimationFrame(tycoonLoop)}
 $('#hireFisherman').onclick=()=>{const cost=fishermanCost();if(state.fishermen>=MAX_FISHERMEN||state.money<cost)return;state.money-=cost;state.fishermen++;renderFishermen();updateHud();toast(`Novo pescador contratado! Equipe: ${state.fishermen}`)};
 
-const lane={units:[],particles:[],last:performance.now(),enemySpawn:2,bossTimer:60,bossIndex:0,elapsed:0,allyBase:700,enemyBase:700,maxBase:700,enemyHpMultiplier:1,messageTimer:0};
-function makeUnit(data,team,boss=false){const id=globalThis.crypto?.randomUUID?.()||Math.random(),teamMultiplier=team==='enemy'?lane.enemyHpMultiplier:1,maxHp=Math.round(data.hp*(boss?1.25:1.45)*teamMultiplier);return{...data,id,team,boss,key:boss?data.key:data.name,x:team==='ally'?115:1085,y:315+(Math.random()-.5)*10,dir:team==='ally'?1:-1,maxHp,curHp:maxHp,cooldown:.3+Math.random()*.4,attack:null,moving:false,hurt:0,dead:false,size:boss?data.size:(SIZE[data.name]||.9)}}
+const lane={units:[],particles:[],last:performance.now(),enemySpawn:2,bossTimer:60,bossIndex:0,elapsed:0,allyBase:700,enemyBase:700,maxBase:700,enemyDamageBonus:0,messageTimer:0};
+function makeUnit(data,team,boss=false){const id=globalThis.crypto?.randomUUID?.()||Math.random(),maxHp=Math.round(data.hp*(boss?1.25:1.45)),attackBonus=team==='enemy'?lane.enemyDamageBonus:state.damageUpgrades*10;return{...data,id,team,boss,atk:data.atk+attackBonus,key:boss?data.key:data.name,x:team==='ally'?115:1085,y:315+(Math.random()-.5)*10,dir:team==='ally'?1:-1,maxHp,curHp:maxHp,cooldown:.3+Math.random()*.4,attack:null,moving:false,hurt:0,dead:false,size:boss?data.size:(SIZE[data.name]||.9)}}
 function spawnAlly(fish){lane.units.push(makeUnit(fish,'ally'));setLaneMessage(`${fish.name} foi invocado no seu time!`)}
 function spawnEnemy(){
   const allyNames=new Set(lane.units.filter(u=>u.team==='ally'&&!u.dead).map(u=>u.name)),available=FISH.filter(f=>!allyNames.has(f.name)),pool=available.length?available:FISH,base=pool[Math.floor(Math.random()*pool.length)],scale=1+Math.min(.55,lane.elapsed/600);
@@ -95,7 +100,7 @@ function updateUnit(unit,dt){
 function hurtUnit(target,dmg,attacker){target.curHp-=dmg;target.hurt=.18;target.x+=attacker.dir*10;burst(target.x,target.y-70,attacker.boss?'#ff9b31':'#fff09a',dmg);if(target.curHp<=0){target.dead=true;if(target.team==='enemy'){const reward=target.boss?target.reward:12+Math.round(target.maxHp*.08);state.money+=reward;state.wins++;updateHud();setLaneMessage(target.boss?`♛ ${target.name} derrotado! +${reward} moedas`:`${target.name} derrotado! +${reward} moedas`,target.boss?5:2.5)}}}
 function hitBase(unit){const dmg=Math.round(unit.atk*(unit.boss?1.5:1));if(unit.team==='ally'){lane.enemyBase-=dmg;burst(1125,300,'#ffe080',dmg)}else{lane.allyBase-=dmg;burst(75,300,'#ff806b',dmg)}}
 function burst(x,y,color,number){for(let i=0;i<8;i++)lane.particles.push({x,y,vx:(Math.random()-.5)*150,vy:-30-Math.random()*100,t:.65,color,size:3+Math.random()*6,number:i?null:number})}
-function resetBase(which){if(which==='enemy'){state.money+=220;lane.enemyHpMultiplier*=1.1;updateHud();toast(`Cais rival destruído! +220 moedas · Vida inimiga +10%`);setLaneMessage(`O próximo exército rival terá ${Math.round((lane.enemyHpMultiplier-1)*100)}% mais vida!`,4);lane.enemyBase=lane.maxBase;lane.units=lane.units.filter(u=>u.team==='ally')}else{state.money=Math.max(0,state.money-60);updateHud();toast('Seu cais caiu! -60 moedas');lane.allyBase=lane.maxBase;lane.units=[]}}
+function resetBase(which){if(which==='enemy'){state.money+=220;lane.enemyDamageBonus++;updateHud();toast(`Cais rival destruído! +220 moedas · Dano inimigo +1`);setLaneMessage(`O próximo exército rival terá +${lane.enemyDamageBonus} de dano!`,4);lane.enemyBase=lane.maxBase;lane.units=lane.units.filter(u=>u.team==='ally')}else{state.money=Math.max(0,state.money-60);updateHud();toast('Seu cais caiu! -60 moedas');lane.allyBase=lane.maxBase;lane.units=[]}}
 function laneLoop(now){
   const dt=Math.min(.04,(now-lane.last)/1000);lane.last=now;lane.elapsed+=dt;lane.enemySpawn-=dt;lane.bossTimer-=dt;lane.messageTimer-=dt;
   if(lane.enemySpawn<=0){spawnEnemy();lane.enemySpawn=7.5+Math.random()*3}if(lane.bossTimer<=0){spawnBoss();lane.bossTimer=60}

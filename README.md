@@ -20,8 +20,9 @@ Acesse `http://localhost:8000`.
 - Cada peixe capturado é invocado imediatamente pelo lado esquerdo da pista.
 - O time inimigo invoca automaticamente peixes diferentes pelo lado direito.
 - As equipes caminham, atacam e destroem o cais adversário automaticamente.
-- Cada vez que o cais rival é destruído, a vida das próximas invocações inimigas aumenta 10% cumulativamente.
+- Cada vez que o cais rival é destruído, o dano das próximas invocações inimigas aumenta 1 ponto cumulativamente.
 - A cada 60 segundos, um dos três bosses é invocado pelo time inimigo.
 - Abates e destruição do cais rival rendem moedas para contratar pescadores e melhorar o equipamento.
+- O treino de combate não tem nível máximo: cada compra dá +10 de dano aos peixes aliados e custa o dobro da anterior, começando em 100 moedas.
 
 O progresso da oficina e as moedas são salvos automaticamente no navegador.
