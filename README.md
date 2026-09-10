@@ -29,5 +29,6 @@ Tilápia robusta, Traíra predatória, Dourado atlético, Pirarucu gigante e Bag
 Fantasma espectral.
 
 Após cinco lutas comuns, o próximo combate é obrigatoriamente contra um dos três
-chefes do rio: Rei Carniça, Barão do Lodo ou Voltágua. O contador reinicia depois
-do confronto com o boss, independentemente do resultado.
+chefes do rio: Rei Carniça, Barão do Lodo ou Voltágua. Se o jogador perder, esse
+mesmo boss permanece na arena e será o único adversário até ser derrotado. O
+contador só reinicia após a vitória.

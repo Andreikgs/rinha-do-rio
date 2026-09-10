@@ -332,11 +332,14 @@ function updateBattleHud() { $('#playerHp').style.width = `${battle.player.curHp
 function finishBattle(win) {
   battle.running = false; cancelAnimationFrame(battle.raf); const idx = state.inventory.findIndex(f => f.id === battle.selected.id); if (idx >= 0) state.inventory.splice(idx, 1);
   const reward = win ? (battle.boss ? battle.enemy.reward + state.bossesFaced * 35 : Math.round(55 + (battle.enemy.maxHp / BATTLE_HP_MULTIPLIER) * .75 + state.wins * 4)) : 0;
-  if (battle.boss) { state.fightsSinceBoss = 0; state.bossesFaced++; if (win) state.bossWins++; } else state.fightsSinceBoss++;
+  if (battle.boss) {
+    if (win) { state.fightsSinceBoss = 0; state.bossesFaced++; state.bossWins++; }
+    else state.fightsSinceBoss = 5;
+  } else state.fightsSinceBoss++;
   if (win) { state.money += reward; state.wins++; } updateHud();
   $('#resultIcon').textContent = win ? (battle.boss ? '♛' : '🏆') : '💀'; $('#resultEyebrow').textContent = win ? (battle.boss ? 'BOSS DERROTADO!' : 'VITÓRIA NA DOCA!') : 'DERROTA'; $('#resultTitle').textContent = win ? `+${reward} moedas` : `${battle.selected.name} foi perdido`;
-  $('#resultBody').innerHTML = `<p>${win ? (battle.boss ? `${battle.selected.name} venceu ${battle.enemy.name} e conquistou uma recompensa lendária!` : `${battle.selected.name} dominou a arena e entrou para a história do rio.`) : `O ${battle.boss ? 'boss' : 'rival'} foi mais forte desta vez. Volte ao lago e treine com um peixe melhor.`}</p><p><b>O lutador deixou seu viveiro após a rinha.</b></p>`;
-  $('#resultPrimary').textContent = 'Voltar para a rinha'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); renderFighters(); }; $('#resultModal').classList.remove('hidden');
+  $('#resultBody').innerHTML = `<p>${win ? (battle.boss ? `${battle.selected.name} venceu ${battle.enemy.name} e conquistou uma recompensa lendária!` : `${battle.selected.name} dominou a arena e entrou para a história do rio.`) : (battle.boss ? `${battle.enemy.name} continua dominando a arena. Seus próximos lutadores enfrentarão este mesmo boss até derrotá-lo.` : 'O rival foi mais forte desta vez. Volte ao lago e treine com um peixe melhor.')}</p><p><b>O lutador deixou seu viveiro após a rinha.</b></p>`;
+  $('#resultPrimary').textContent = battle.boss && !win ? 'Preparar revanche' : 'Voltar para a rinha'; $('#resultPrimary').onclick = () => { $('#resultModal').classList.add('hidden'); renderFighters(); }; $('#resultModal').classList.remove('hidden');
 }
 
 document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); if (fishing.active) setReel(true); else if ($('#lake').classList.contains('active')) startFishing(); } });
