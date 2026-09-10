@@ -39,32 +39,16 @@ const SPECIES_SHEETS = {
 Object.entries(SPECIES_SHEETS).forEach(([name, src]) => {
   const image = new Image();
   image.onload = () => {
-    const prepared = prepareSpeciesSheet(image, name);
+    const prepared = prepareSpeciesSheet(image);
     if (prepared.valid) speciesSprites[name] = prepared;
   };
   image.src = src;
 });
 
-function prepareSpeciesSheet(image, speciesName) {
+function prepareSpeciesSheet(image) {
   const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
   const ctx = canvas.getContext('2d', { willReadFrequently: true }); ctx.drawImage(image, 0, 0);
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height), d = pixels.data, w = canvas.width, h = canvas.height;
-  const seen = new Uint8Array(w * h), queue = new Int32Array(w * h); let head = 0, tail = 0;
-  const push = p => { if (!seen[p]) { seen[p] = 1; queue[tail++] = p; } };
-  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
-  for (let y = 1; y < h - 1; y++) { push(y * w); push(y * w + w - 1); }
-  while (head < tail) {
-    const p = queue[head++], px = p % w, py = (p / w) | 0, pi = p * 4;
-    const visit = n => {
-      if (seen[n]) return; const ni = n * 4;
-      const diff = Math.max(Math.abs(d[pi] - d[ni]), Math.abs(d[pi + 1] - d[ni + 1]), Math.abs(d[pi + 2] - d[ni + 2]));
-      const edgeTolerance = speciesName === 'Lambari' ? 4 : 13;
-      if (diff <= edgeTolerance) push(n);
-    };
-    if (px > 0) visit(p - 1); if (px < w - 1) visit(p + 1); if (py > 0) visit(p - w); if (py < h - 1) visit(p + w);
-  }
-  for (let p = 0; p < seen.length; p++) if (seen[p]) d[p * 4 + 3] = 0;
-  ctx.putImageData(pixels, 0, 0);
   const cellW = w / 3, cellH = h / 2, bounds = [], framePixels = [];
   for (let frame = 0; frame < 6; frame++) {
     const col = frame % 3, row = (frame / 3) | 0, x0 = Math.floor(col * cellW), y0 = Math.floor(row * cellH), x1 = Math.ceil((col + 1) * cellW), y1 = Math.ceil((row + 1) * cellH);
@@ -73,10 +57,11 @@ function prepareSpeciesSheet(image, speciesName) {
     framePixels.push(count);
     bounds.push(maxX > minX ? { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } : { x: x0, y: y0, w: cellW, h: cellH });
   }
-  const valid = framePixels.every(count => count > 1800);
+  const valid = framePixels.every(count => count > 1800 && count < cellW * cellH * .72);
   return { canvas, bounds, valid };
 }
 const BATTLE_HP_MULTIPLIER = 1.75;
+const BOSS_HP_BONUS = 10;
 const BOSSES = [
   { name: 'Rei Carniça', spriteKey: 'Boss Rei Carniça', emoji: '👑', hp: 250, atk: 23, speed: 10, weight: 8, reward: 450 },
   { name: 'Barão do Lodo', spriteKey: 'Boss Barão do Lodo', emoji: '🪨', hp: 340, atk: 20, speed: 4, weight: 12, reward: 520 },
@@ -192,7 +177,7 @@ function fishingLoop(now) {
   if (Math.abs(fishing.fish - fishing.target) < 7) fishing.target = 15 + Math.random() * (FISH_TRACK_HEIGHT - 45);
   const chase = (fishing.target - fishing.fish) * dt * (1.3 + fishing.difficulty); fishing.fish += chase + Math.sin(now / 170) * fishing.difficulty * .55;
   const zoneH = 96 + state.reel * 9, fishCenter = fishing.fish + 22, inside = fishCenter > fishing.zone && fishCenter < fishing.zone + zoneH;
-  const progressLoss = Math.max(1.4, 3.25 - state.reel * .3);
+  const progressLoss = Math.max(1.4, 3.25 - state.reel * .3) * 1.30;
   fishing.progress += (inside ? 29 : -progressLoss) * dt; fishing.progress = Math.max(0, Math.min(100, fishing.progress));
   $('#catchZone').style.bottom = `${fishing.zone}px`; $('#targetFish').style.bottom = `${fishing.fish}px`; $('#catchProgress').style.height = `${fishing.progress}%`;
   if (fishing.progress >= 100) return endFishing(true); if (fishing.progress <= 0) return endFishing(false);
@@ -216,7 +201,7 @@ function startBattle(id) {
   const bossFight = state.fightsSinceBoss >= 5; let rival;
   if (bossFight) {
     const boss = BOSSES[state.bossesFaced % BOSSES.length], scale = 1 + state.bossesFaced * .04;
-    rival = { ...boss, hp: Math.round(boss.hp * scale), atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5 };
+    rival = { ...boss, hp: Math.round(boss.hp * scale) + BOSS_HP_BONUS, atk: Math.round(boss.atk * Math.min(1.35, scale)), quality: 5 };
   } else {
     const tier = Math.min(FISH.length - 1, Math.max(0, FISH.findIndex(x => x.name === f.name) + (Math.random() > .65 ? 1 : 0)));
     const base = FISH[tier], scale = .92 + state.wins * .025 + Math.random() * .12;
